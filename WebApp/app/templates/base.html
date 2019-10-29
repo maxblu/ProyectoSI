@@ -1,0 +1,30 @@
+<html>
+    <head>
+      
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      {% if title %}
+      <title>{{ title }} - Engine</title>
+      {% else %}
+      <title>Welcome to Charlotte Engine</title>
+      {% endif %}
+      <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Cookie">
+      <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
+    </head>
+    <body style="background-image: url('../static/img/globe.jpg')">
+        <div class="container" >
+            <div class="jumbotron" style="opacity: 0.8"  >
+                        <div>
+                            <div class="col-md-12">
+                                <h1 class="text-nowrap text-uppercase text-center"> Charlotte </h1></div>
+                        </div>
+                        
+                         
+                        {% block content %}{% endblock %}
+                    </div>
+                    
+            </div>
+        
+    </body>
+</html>
