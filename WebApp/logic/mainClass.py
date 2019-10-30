@@ -1,13 +1,26 @@
+from io import StringIO
+from pdfminer.converter import TextConverter
+from pdfminer.layout import LAParams
+from pdfminer.pdfdevice import PDFDevice
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdfinterp import PDFPageInterpreter
+from pdfminer.pdfinterp import PDFResourceManager
+from pdfminer.pdfpage import PDFPage
+from pdfminer.pdfpage import PDFTextExtractionNotAllowed
+from pdfminer.pdfparser import PDFParser
+from pprint import pprint
+from preprocces import Lematize
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import os
-import pickle
-import json
-import time
-import numpy as np
-from pprint import pprint
 from tqdm import tqdm
+import chardet
+import json
+import numpy as np
+import os
+import pdfminer
+import pickle
+import time
 import spacy
 from spacy.lang.es import Spanish , LOOKUP
 from spacy.tokenizer import  Tokenizer
