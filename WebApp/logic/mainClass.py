@@ -174,12 +174,54 @@ class RecuperationEngine():
         self.file_names = []
         self.count = 0
         for file in os.listdir(self.datafolder):
-            if file.endswith(".txt"):
+            if file.endswith(".pdf") or file.endswith(".txt"):
                 new_file = self.datafolder+file
                 self.file_names.append(new_file)
                 self.count+=1
-                with open(new_file) as fd:
-                    self.preprocces(fd.read())
+                if file.endswith(".txt"):
+                    with open(new_file) as fd:
+                        self.preprocces(fd.read())
+                else:
+                    self.preprocces(self.read_pdf(new_file))
+
+    
+    def read_pdf(self, string):
+        rsrcmgr = PDFResourceManager()
+        retstr = StringIO()
+        codec ='utf-8'
+        laparams = LAParams()
+        device =  TextConverter(rsrcmgr, retstr, codec=codec, laparams=laparams)
+        fp = open(string, 'rb')
+        interpreter = PDFPageInterpreter(rsrcmgr, device)
+        password=''
+        maxpages = 0
+        caching=True
+        pagenos = set()
+
+        for page in PDFPage.get_pages(fp, pagenos, 
+                                        maxpages=maxpages, 
+                                        password=password, 
+                                        caching=caching, 
+                                        check_extractable=True):
+            interpreter.process_page(page)
+
+        text = retstr.getvalue()
+
+        fp.close()
+        device.close()
+        retstr.close()
+        # print(text)
+
+        def fix_accents(string):
+            string = string.replace("´ı", "í")
+            string = string.replace("˜n", "ñ")
+            string = string.replace("´a", "á")
+            string = string.replace("´e", "é")
+            string = string.replace("´o", "ó")
+            string = string.replace("´u", "ú")
+            # print(string)
+            return string
+        return fix_accents(text)
 
 if __name__ == "__main__":
 
