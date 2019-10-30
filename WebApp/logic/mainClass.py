@@ -8,7 +8,12 @@ import time
 import numpy as np
 from pprint import pprint
 from tqdm import tqdm
-from preprocces import Lematize
+import spacy
+from spacy.lang.es import Spanish , LOOKUP
+from spacy.tokenizer import  Tokenizer
+import nltk
+from nltk.stem.snowball import SpanishStemmer
+
 
 # from gensim.summarization import summarize
 
@@ -29,24 +34,14 @@ class CharlotteSearchEngine():
             Esta matiz se puede realizar gracias a los json guardaos producto del scrapeo. 
 
         """
-        self.total_count= 0 
-        self.scraped_docs = []
-        self.sumary = {}
-        self.scraped_sites_indexed = { }
-        self.scraped_sites= []
-        self.lematizer = Lematize()
-
-        print('Loading Docs...')
-        self.load_json_docs()
-
-        if os.path.exists('data/TfIdfVectorizer.pk'):
-            self.load_tf_vectorizer()
-            self.load_tfidf_matrix()
-        else:
-            self.tf = TfidfVectorizer()
-            self.save_tfidf_matrix()
-
+        self.total_count= 0
+        nlp = Spanish()
+        self.tokenizer = Tokenizer(nlp.vocab)
+        self.stemmer = SpanishStemmer()
+        self.stopwordsfolder ='data/stopwords/'
+        self.docs_prepoced =[]
         
+
     def load_json_docs(self):
         """Método para cargar los sitios scrapeados y construir el indice de ser necesario"""
         
@@ -141,5 +136,37 @@ class CharlotteSearchEngine():
         print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
         
         return pages,time_took
+
+
+    def preprocces(self,text):
+        stopwords = []
+
+        ##load stopwords
+        for file in os.listdir(self.stopwordsfolder):
+            with open(self.stopwordsfolder + file, encoding='utf-8') as fd:
+                stopwords += fd.read().split()
+            
+        doc = self.tokenizer(text)
+        result = " "
+
+        lematized_tokens= []
+
+        ## stopwords and lematize
+        for word in doc:
+            if word.text in stopwords:
+                continue
+            value =  LOOKUP.get(word.text)
+            if value == None:
+                
+                # lematized_tokens.append(word.text)
+                # result+= " " + word.text
+                result+= " " + self.stemmer.stem( word.text)
+                
+                continue
+            # lematized_tokens.append(value)
+            # result += " " + value
+            result += " " + self.stemmer(value)
+
+        self.docs_prepoced.append(result)
 
 # if __name__ == "__main__":
