@@ -19,7 +19,7 @@ from nltk.stem.snowball import SpanishStemmer
 
 
 
-class CharlotteSearchEngine():
+class RecuperationEngine():
     """Esta clase representa el core del motor de búsqueda 
     Basicamente crea el modelo vectorial o lo carga si ya lo construyo alguna vez
     y para una consulta se le pasa al metodo search_query este define si lo tiene indexado o no
@@ -34,13 +34,13 @@ class CharlotteSearchEngine():
             Esta matiz se puede realizar gracias a los json guardaos producto del scrapeo. 
 
         """
-        self.total_count= 0
+        self.count= 0
         nlp = Spanish()
         self.tokenizer = Tokenizer(nlp.vocab)
         self.stemmer = SpanishStemmer()
-        self.stopwordsfolder ='data/stopwords/'
+        self.stopwordsfolder ='../data/stopwords/'
         self.docs_prepoced =[]
-        
+        self.file_names = []
 
     def load_json_docs(self):
         """Método para cargar los sitios scrapeados y construir el indice de ser necesario"""
@@ -149,8 +149,6 @@ class CharlotteSearchEngine():
         doc = self.tokenizer(text)
         result = " "
 
-        lematized_tokens= []
-
         ## stopwords and lematize
         for word in doc:
             if word.text in stopwords:
@@ -169,4 +167,24 @@ class CharlotteSearchEngine():
 
         self.docs_prepoced.append(result)
 
-# if __name__ == "__main__":
+
+    def load_folder(self, folder):
+
+        self.datafolder = folder
+        self.file_names = []
+        self.count = 0
+        for file in os.listdir(self.datafolder):
+            if file.endswith(".txt"):
+                new_file = self.datafolder+file
+                self.file_names.append(new_file)
+                self.count+=1
+                with open(new_file) as fd:
+                    self.preprocces(fd.read())
+
+if __name__ == "__main__":
+
+    a = RecuperationEngine()
+
+    a.load_folder("testdata/")
+    print(a.docs_prepoced)
+    print(a.count)
