@@ -1,12 +1,9 @@
 {%extends "base.html" %}
 {% block content %}
-<div>
-              <form   method="post">
+<div >
+              <form    method="post">
                       {{ form.csrf_token }}
-                  <label class="control-label" for="search-input"> </label>
-                  <div class="input-group">
-                      {{ form.query (class_ = "form-control input-lg query" )  }}
-                  <div class="input-group-btn">
+                  <div class="input-group-btn" style= "text-align: center">
                               {{ form.submit(class_ = "btn btn-default btn-lg" ) }}
                           
                   </div>

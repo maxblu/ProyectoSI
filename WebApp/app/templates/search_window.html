@@ -2,7 +2,9 @@
 
 {% block content %}
 
+
 <div>
+    
         <form   method="post">
                 {{ form.csrf_token }}
             <label class="control-label" for="search-input"> </label>
@@ -16,13 +18,19 @@
         </form>
     </div>
     {% if results %}
+    
+    <div class="container">
+    {{paginator.links}}
+    {{paginator.info}}
+    
     <div class="table-responsive">
             <table class="table table-hover">
                     <thead>
                             <tr>
                                 
                                 <th class="text-xs-right">Results in {{time}} seconds</th>
-                                <th class="text-xs-right">Similarity Value</th>
+                                <th class="text-xs-right">Similarity</th>
+                                <th class="text-xs-right">Is relevant?</th>
                                 
                             </tr>
                             
@@ -36,19 +44,20 @@
                     <!-- <div>{{sumary}}</div> -->
                 </td>
                 <td><div>{{rank}}<br></div></td>
-                
+                <td><form><input type="checkbox" name= "{{loop.index}}"> </form></td>
 
             </tr>
             {% endfor %}
                 
                 </tbody>
             </table>
+            
         </div>
+    </div>
 
 
     
         
         {% endif %}
-    </form>
 {% endblock %}
 

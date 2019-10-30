@@ -50,9 +50,10 @@ class RecuperationEngine():
         nlp = Spanish()
         self.tokenizer = Tokenizer(nlp.vocab)
         self.stemmer = SpanishStemmer()
-        self.stopwordsfolder ='../data/stopwords/'
+        self.stopwordsfolder ='data/stopwords/'
         self.docs_prepoced =[]
         self.file_names = []
+        self.datafolder = ''
         self.tf = TfidfVectorizer()
 
 
@@ -71,10 +72,10 @@ class RecuperationEngine():
         self.tfidfmatrix = self.tf.fit_transform( self.docs_prepoced)
         
         print('Saving Matrix...')
-        np.save('../data/Tf-Idf-matrix',self.tfidfmatrix) 
+        np.save('data/Tf-Idf-matrix',self.tfidfmatrix) 
 
         print('Saving Model...')
-        with open('../data/TfIdfVectorizer.pk', 'wb') as f:
+        with open('data/TfIdfVectorizer.pk', 'wb') as f:
             pickle.dump(self.tf,f)
 
     def load_tfidf_matrix(self):
@@ -101,7 +102,7 @@ class RecuperationEngine():
 
 
 
-    def rank(self, query_vector,k=10):
+    def rank(self, query_vector,k=100):
         """ Genera el rankink de los documentos más parecidos a la query en este caso indicado por el parametro k por default los 1000
         documentos más parecidos. Se usa la similaridad de coseno ya que es la que mejor resultados ha alcansado para este modelo"""
         result = self.cosinesimilarity(query_vector)
@@ -127,7 +128,7 @@ class RecuperationEngine():
         pages =[ ]
 
         for i in n_Mayores:
-            pages.append((round(result[0][i],3),self.file_names[i]))
+            pages.append((round(result[0][i],3), self.file_names[i] ))
 
         pages.reverse()
 
@@ -175,8 +176,8 @@ class RecuperationEngine():
         self.count = 0
         for file in os.listdir(self.datafolder):
             if file.endswith(".pdf") or file.endswith(".txt"):
-                new_file = self.datafolder+file
-                self.file_names.append(new_file)
+                self.file_names.append(file)
+                new_file = os.path.join(self.datafolder,file)
                 self.count+=1
                 if file.endswith(".txt"):
                     print(new_file)
