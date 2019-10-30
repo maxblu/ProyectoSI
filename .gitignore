@@ -1,0 +1,9 @@
+WebApp/logic/test-jl/*
+WebApp/__pycache__/*
+
+WebApp/app/static/*
+WebApp/app/__pycache__/*
+
+*.pyc
+*.txt
+*.pdf

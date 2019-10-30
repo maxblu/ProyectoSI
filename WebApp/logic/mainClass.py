@@ -35,6 +35,7 @@ class CharlotteSearchEngine():
         self.scraped_sites_indexed = { }
         self.scraped_sites= []
         self.lematizer = Lematize()
+        self.file_names = []
 
         print('Loading Docs...')
         self.load_json_docs()
@@ -142,4 +143,16 @@ class CharlotteSearchEngine():
         
         return pages,time_took
 
-# if __name__ == "__main__":
+    def load_folder(self, folder):
+
+        self.datafolder = folder
+        self.file_names = []
+        self.count = 0
+        for file in os.listdir(self.datafolder):
+            if file.endswith(".txt"):
+                new_file = self.datafolder+file
+                self.file_names.append(new_file)
+                self.count+=1
+                with open(new_file) as fd:
+                    self.preprocces(fd.read())
+
