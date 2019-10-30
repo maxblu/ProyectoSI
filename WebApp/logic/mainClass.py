@@ -9,7 +9,6 @@ from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfpage import PDFTextExtractionNotAllowed
 from pdfminer.pdfparser import PDFParser
 from pprint import pprint
-from preprocces import Lematize
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -54,21 +53,8 @@ class RecuperationEngine():
         self.stopwordsfolder ='../data/stopwords/'
         self.docs_prepoced =[]
         self.file_names = []
+        self.tf = TfidfVectorizer()
 
-    def load_json_docs(self):
-        """Método para cargar los sitios scrapeados y construir el indice de ser necesario"""
-        
-        i = 0
-        "Wikipedia"
-        with open('data/Wikipedia.jsonl',encoding='utf-8') as f:
-            for line in tqdm(f):
-                data = json.loads(line)
-                self.scraped_docs.append(data['page content'])
-                self.scraped_sites.append(data['page'])
-                self.scraped_sites_indexed[data['page']] = i
-
-                # self.sumary = summarize( data['page content'],ratio= 0.1)
-                i+=1
 
     def save_tfidf_matrix(self,):
         """En este metodo se llama si no se han construido nunca los indices 
@@ -82,13 +68,13 @@ class RecuperationEngine():
         """
 
         print('Computing Tf-Idf Matrix...')
-        self.tfidfmatrix = self.tf.fit_transform( self.scraped_docs)
+        self.tfidfmatrix = self.tf.fit_transform( self.docs_prepoced)
         
         print('Saving Matrix...')
-        np.save('data/Tf-Idf-matrix',self.tfidfmatrix) 
+        np.save('../data/Tf-Idf-matrix',self.tfidfmatrix) 
 
         print('Saving Model...')
-        with open('data/TfIdfVectorizer.pk', 'wb') as f:
+        with open('../data/TfIdfVectorizer.pk', 'wb') as f:
             pickle.dump(self.tf,f)
 
     def load_tfidf_matrix(self):
@@ -121,7 +107,7 @@ class RecuperationEngine():
         result = self.cosinesimilarity(query_vector)
         
         index_sorted = np.argsort(result)
-        return (result,index_sorted[0][self.total_count-k: ])
+        return (result,index_sorted[0][self.count-k: ])
 
     def search_query(self, query,weburl= False):
         """Método principal del motor de búsqueda primero revisa si es un url o no. 
@@ -141,7 +127,7 @@ class RecuperationEngine():
         pages =[ ]
 
         for i in n_Mayores:
-            pages.append((round(result[0][i],3),self.scraped_sites[i]))
+            pages.append((round(result[0][i],3),self.file_names[i]))
 
         pages.reverse()
 
@@ -164,6 +150,7 @@ class RecuperationEngine():
 
         ## stopwords and lematize
         for word in doc:
+            # print(word)
             if word.text in stopwords:
                 continue
             value =  LOOKUP.get(word.text)
@@ -176,7 +163,7 @@ class RecuperationEngine():
                 continue
             # lematized_tokens.append(value)
             # result += " " + value
-            result += " " + self.stemmer(value)
+            result += " " + self.stemmer.stem(value)
 
         self.docs_prepoced.append(result)
 
@@ -192,7 +179,8 @@ class RecuperationEngine():
                 self.file_names.append(new_file)
                 self.count+=1
                 if file.endswith(".txt"):
-                    with open(new_file) as fd:
+                    print(new_file)
+                    with open(new_file,encoding='utf-8') as fd:
                         self.preprocces(fd.read())
                 else:
                     self.preprocces(self.read_pdf(new_file))
@@ -243,3 +231,4 @@ if __name__ == "__main__":
     a.load_folder("testdata/")
     print(a.docs_prepoced)
     print(a.count)
+    a.save_tfidf_matrix()

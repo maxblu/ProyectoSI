@@ -6,9 +6,9 @@ app = Flask(__name__,static_url_path='/static', static_folder='static')
 
 Bootstrap(app)
 app.config.from_object(Config)
-from web.search_engine import CharlotteSearchEngine
+from logic.mainClass import RecuperationEngine
 
-engine = CharlotteSearchEngine()
+engine = RecuperationEngine()
 
 from app import routes
 
