@@ -22,7 +22,8 @@
     <div class="container">
     {{paginator.links}}
     {{paginator.info}}
-    
+    <form method="POST"  >
+            {{ form.csrf_token }}
     <div class="table-responsive">
             <table class="table table-hover">
                     <thead>
@@ -44,13 +45,18 @@
                     <!-- <div>{{sumary}}</div> -->
                 </td>
                 <td><div>{{rank}}<br></div></td>
-                <td><form><input type="checkbox" name= "{{loop.index}}"> </form></td>
-
+                <td> <label class="btn btn-success pzt active">
+                        <input type="checkbox" name="relevant" value="{{result}}" >
+                    </label></td>
             </tr>
             {% endfor %}
                 
                 </tbody>
             </table>
+            <div class="input-group-btn" style= "text-align: center">
+                    {{ relevantForm.submit(class_ = "btn btn-default btn-lg" ) }}
+                
+        </div></form>
             
         </div>
     </div>

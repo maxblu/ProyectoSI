@@ -8,3 +8,6 @@ class SearchTemplate(FlaskForm):
 
 class SelectDirectory(FlaskForm):
     submit = SubmitField('Select Directory!')
+
+class SaveFeedBack(FlaskForm):
+    submit = SubmitField('save relevant documents')

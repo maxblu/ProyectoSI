@@ -55,6 +55,7 @@ class RecuperationEngine():
         self.file_names = []
         self.datafolder = ''
         self.tf = TfidfVectorizer()
+        self.retro_feed_data = {}
 
 
     def save_tfidf_matrix(self,):
@@ -224,6 +225,26 @@ class RecuperationEngine():
             # print(string)
             return string
         return fix_accents(text)
+
+    def add_retro_feed(self,key,items):
+        """añade a el diccionario el conjunto de documentos relevantes que marco el usuario 
+        para el query key"""
+        
+
+        """ nota : revisar si lo dejamos como set o no , ya que el set no es json 
+        serializable lo que hace que no podamos guardar este fees back en disco por lo menos no sin hacerle nada """
+
+        if not self.retro_feed_data.get(key) == None:
+            for i in items:
+                # self.retro_feed_data[key].append(i)
+                self.retro_feed_data[key].add(i)
+        else:
+            self.retro_feed_data[key] = set()
+            # self.retro_feed_data[key] = []
+
+    def save_retro_feed(self):
+        with open('data/retro_feed.json','w')as fd:
+            json.dump(self.retro_feed_data,fd)
 
 if __name__ == "__main__":
 
