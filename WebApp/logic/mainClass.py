@@ -11,6 +11,7 @@ from pdfminer.pdfparser import PDFParser
 from pprint import pprint
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 from tqdm import tqdm
 import chardet
@@ -103,15 +104,15 @@ class RecuperationEngine():
 
 
 
-    def rank(self, query_vector,k=100):
+    def rank(self, query_vector,matrix,k=100):
         """ Genera el rankink de los documentos más parecidos a la query en este caso indicado por el parametro k por default los 1000
         documentos más parecidos. Se usa la similaridad de coseno ya que es la que mejor resultados ha alcansado para este modelo"""
-        result = self.cosinesimilarity(query_vector)
+        result = cosine_similarity(query_vector,matrix)
         
         index_sorted = np.argsort(result)
         return (result,index_sorted[0][self.count-k: ])
 
-    def search_query(self, query,weburl= False):
+    def search_query(self, query,model= 'vec'):
         """Método principal del motor de búsqueda primero revisa si es un url o no. 
         Si lo es revisa si ya lo tiene indexado lo busca yllama a rank sino lo manda scrapear y con  todo el preprocesado que lleva
         y llama a rank. Esto siempre despues de haber tranforamdo el vector de consulta al espacio de los documentos indexados.
@@ -119,12 +120,14 @@ class RecuperationEngine():
 
         
         """
+        if model == 'lsi':
+            return self.search_query_LSA(query)
         init = time.time()
 
         print('Vectorizing Query')
         query_vector = self.transformQery(query)
 
-        result, n_Mayores = self.rank(query_vector)
+        result, n_Mayores = self.rank(query_vector,self.tfidfmatrix)
 
         pages =[ ]
 
@@ -170,7 +173,7 @@ class RecuperationEngine():
         self.docs_prepoced.append(result)
 
 
-    def load_folder(self, folder):
+    def load_folder(self, folder="data/"):
 
         self.datafolder = folder
         self.file_names = []
@@ -181,8 +184,7 @@ class RecuperationEngine():
                 new_file = os.path.join(self.datafolder,file)
                 self.count+=1
                 if file.endswith(".txt"):
-                    print(new_file)
-                    with open(new_file,encoding='utf-8') as fd:
+                    with open(new_file, encoding='utf-8') as fd:
                         self.preprocces(fd.read())
                 else:
                     self.preprocces(self.read_pdf(new_file))
@@ -245,12 +247,63 @@ class RecuperationEngine():
     def save_retro_feed(self):
         with open('data/retro_feed.json','w')as fd:
             json.dump(self.retro_feed_data,fd)
+    def LSA(self, folder="data/"):
+        self.svd = TruncatedSVD(n_components = 300)
+        self.svdMatrix = self.svd.fit_transform(self.tfidfmatrix)
+        # self.svdMatrix = Normalizer(copy=False).fit_transform(self.svdMatrix)
 
-if __name__ == "__main__":
+    def search_query_LSA(self, query):
+        init = time.time()
+        print('LSA Query')
+        query_vector = self.transformQery(query)
+        query_vector = self.svd.transform(query_vector)
 
-    a = RecuperationEngine()
 
-    a.load_folder("testdata/")
-    print(a.docs_prepoced)
-    print(a.count)
-    a.save_tfidf_matrix()
+        result, n_Mayores = self.rank(query_vector,self.svdMatrix)
+
+        pages =[ ]
+
+        for i in n_Mayores:
+            pages.append((round(result[0][i],3),self.file_names[i]))
+
+        pages.reverse()
+
+        time_took =round(time.time()-init,3)
+        print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
+        
+        return pages,time_took
+
+    def save_LSA(self):
+        np.save("svdMatrix", self.svdMatrix)
+        with open("svdModel.pk",'wb') as pickle_file:
+            pickle.dump(self.svd, pickle_file)
+    def load_LSA(self):
+        with open("svdModel.pk",'rb') as pickle_file:
+            self.svd = pickle.load(pickle_file)
+        self.svdMatrix = np.load("svdMatrix")
+    
+    def loop(self):
+        while True:
+            try:
+                query = input("Enter query > ")
+                out1 = self.search_query(query)
+                out2 = self.search_query_LSA(query)
+
+                pprint(out1)
+                pprint(out2)
+            except KeyboardInterrupt as e:
+                break
+                
+            
+
+# if __name__ == "__main__":
+
+#     a = RecuperationEngine()
+
+#     a.load_folder("testdata/")
+#     print(a.docs_prepoced)
+#     print(a.count)
+#     a.save_tfidf_matrix()
+    # a.LSA()
+    # a.load_LSA()
+    # a.save_LSA()

@@ -4,6 +4,8 @@ WebApp/__pycache__/*
 WebApp/app/static/*
 WebApp/app/__pycache__/*
 
+/WebApp/logic/__pycache__/preprocces.cpython-37.pyc
+
 *.pyc
 *.txt
 *.pdf
