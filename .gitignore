@@ -9,3 +9,7 @@ WebApp/app/__pycache__/*
 *.pyc
 *.txt
 *.pdf
+*.npy
+*.pk
+*.ipynb
+*.rar
