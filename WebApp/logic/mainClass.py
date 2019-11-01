@@ -13,6 +13,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
+import logic.medidas
 from tqdm import tqdm
 import chardet
 import json
@@ -120,6 +121,7 @@ class RecuperationEngine():
 
         
         """
+        k = 100
         if model == 'lsi':
             return self.search_query_LSA(query)
         init = time.time()
@@ -129,18 +131,49 @@ class RecuperationEngine():
 
         result, n_Mayores = self.rank(query_vector,self.tfidfmatrix)
 
+
+
         pages =[ ]
+        results =[]
 
         for i in n_Mayores:
             pages.append((round(result[0][i],3), self.file_names[i] ))
+            results.append(self.file_names[i])
 
         pages.reverse()
+        results.reverse()
+
+        rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
+
+        if not self.retro_feed_data.get(query) == None:
+            rr , nr , ri = self.calc_rr_nr_ri(query,results)
+            precc = logic.medidas.precision(rr,ri)
+            recb  = logic.medidas.recall(rr,nr)
+            f_med = logic.medidas.f_medida(recb,precc)
+            f1_med = logic.medidas.f1_medida(recb,precc)
+            r_prec = logic.medidas.r_precision(k,rr )
+
+
+
 
         time_took =round(time.time()-init,3)
         print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
         
-        return pages,time_took
+        return pages,time_took, precc, recb , f_med , f1_med , r_prec
 
+    def calc_rr_nr_ri(self,query,results):
+        """devuelve una tripla con 
+            rr: relevantes recuperados
+            nr: relevantes no recuperados
+            ri: irrelevantes recuperados
+         """
+        results = set(results)
+        relevants = set( self.retro_feed_data[query])
+        rr = relevants.intersection(results)
+        ri = results.difference(relevants)
+        nr =  relevants.difference(results)
+
+        return (len(rr),len(nr),len(ri))
 
     def preprocces(self,text):
         stopwords = []
@@ -237,16 +270,26 @@ class RecuperationEngine():
         serializable lo que hace que no podamos guardar este fees back en disco por lo menos no sin hacerle nada """
 
         if not self.retro_feed_data.get(key) == None:
+            # self.retro_feed_data[key] += items
             for i in items:
-                # self.retro_feed_data[key].append(i)
-                self.retro_feed_data[key].add(i)
+                if not i in self.retro_feed_data[key]:
+                    self.retro_feed_data[key].append(i)
+                # self.retro_feed_data[key].add(i)
         else:
-            self.retro_feed_data[key] = set()
-            # self.retro_feed_data[key] = []
+            # self.retro_feed_data[key] = set()
+            self.retro_feed_data[key] = []
+            
+    def load_retro_feed(self,path = 'data/retro_feed_data.json'):
+        with open('data/retro_feed.json','r',encoding='utf-8')as fd:
+            self.retro_feed_data = json.load(fd)
+
 
     def save_retro_feed(self):
-        with open('data/retro_feed.json','w')as fd:
-            json.dump(self.retro_feed_data,fd)
+        
+        for key in self.retro_feed_data.keys():
+            with open('data/retro_feed-'+key+'.json','w', encoding='utf-8')as fd:
+                json.dump({key:self.retro_feed_data[key]},fd)
+
     def LSA(self, folder="data/"):
         self.svd = TruncatedSVD(n_components = 300)
         self.svdMatrix = self.svd.fit_transform(self.tfidfmatrix)
@@ -254,24 +297,42 @@ class RecuperationEngine():
 
     def search_query_LSA(self, query):
         init = time.time()
-        print('LSA Query')
+        k = 100
         query_vector = self.transformQery(query)
         query_vector = self.svd.transform(query_vector)
 
 
         result, n_Mayores = self.rank(query_vector,self.svdMatrix)
 
+        
+
         pages =[ ]
+        results = []
 
         for i in n_Mayores:
             pages.append((round(result[0][i],3),self.file_names[i]))
+            results.append(self.file_names[i])
 
         pages.reverse()
+        results.reverse()
+
+        rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
+
+        if not self.retro_feed_data.get(query) == None:
+            rr , nr , ri = self.calc_rr_nr_ri(query,results)
+            precc = logic.medidas.precision(rr,ri)
+            recb  = logic.medidas.recall(rr,nr)
+            f_med = logic.medidas.f_medida(recb,precc)
+            f1_med = logic.medidas.f1_medida(recb,precc)
+            r_prec = logic.medidas.r_precision(k,rr )
+
+
+
 
         time_took =round(time.time()-init,3)
         print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
         
-        return pages,time_took
+        return pages,time_took, precc, recb , f_med , f1_med , r_prec
 
     def save_LSA(self):
         np.save("svdMatrix", self.svdMatrix)

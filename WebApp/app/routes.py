@@ -3,6 +3,7 @@ from flask_paginate import Pagination , get_page_parameter , get_page_args
 from app.forms import SearchTemplate,SelectDirectory, SaveFeedBack
 from app import app
 from tkinter import filedialog
+import tkinter as tk
 import os
 from logic.mainClass import RecuperationEngine
 
@@ -12,6 +13,7 @@ global engine
 global results
 global time
 global search_query
+global model
 
 @app.route('/',methods=['GET', 'POST'])
 @app.route('/index',methods=['GET', 'POST'])
@@ -23,18 +25,46 @@ def index():
         global BASE_DIR
         global results
         global search_query
+        global model
         results = []
+        lsi =form.lsi.data
+        vec = form.vectorial.data
 
         BASE_DIR = filedialog.askdirectory()
         engine = RecuperationEngine()
         engine.load_folder(BASE_DIR)
-        engine.save_tfidf_matrix()
+
+        # if lsi and vec:
+        #     model = 'lsi'
+        #     engine.save_tfidf_matrix()
+        #     engine.LSA()
+
+        if lsi:
+            model= 'lsi'
+            engine.save_tfidf_matrix()
+            engine.LSA()
+        elif vec:
+            model= 'vec'
+            engine.save_tfidf_matrix()
+            # engine.LSA()
+        else:
+            model= 'lsi'
+            engine.save_tfidf_matrix()
+            engine.LSA()
+
+
+        
         search_query = []
         return redirect('/search')
 
     return render_template('index.html', title='Home',form= form)
 
+@app.route('/statistics')
+def show_statistics():
 
+    measures = [0,0,0,0,0]
+    print("entro")
+    return render_template('statistic.html',measures= measures)
 
 
 @app.route('/search',methods=['GET', 'POST'])
@@ -43,6 +73,8 @@ def search():
     global results
     global time
     global search_query
+    global model
+
     form = SearchTemplate()
     relevantForm =  SaveFeedBack()
 
@@ -51,22 +83,18 @@ def search():
         engine.save_retro_feed()
 
     if form.validate_on_submit() :
-        print(engine.retro_feed_data)        
+        print(engine.retro_feed_data)
 
         search_term = form.query.data # Aqui pasrle la query al sistema para que devuelva las posibles paginas ranqueadas
         search_query = search_term
 
-        is_a_page = 'http://'  in search_term or 'https://'  in search_term
-        if is_a_page:
-            results , time =   engine.search_query(search_term,weburl=True)
-        else:
-            results ,time =    engine.search_query(search_term)
-        
+        results ,time ,precc, recb, f_med, f1_med, r_prec = engine.search_query(search_term, model= model)
+
         page, per_page, offset = get_page_args(page_parameter='page',
                                            per_page_parameter='per_page')
         total = len(results)
-        
-        
+
+
         subresult = results[0:per_page +1]
         paginator = Pagination(total,page =page , total= total,per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
 
@@ -76,8 +104,8 @@ def search():
     if request.args.get('page') or not total == 0:
         page, per_page, offset = get_page_args(page_parameter='page',
                                            per_page_parameter='per_page')
-        
-        
+
+
         paginator = Pagination(total,page =page , total= total, per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
         subresult= results[offset: offset+per_page]
 
@@ -88,9 +116,11 @@ def search():
 @app.route('/', defaults={'req_path':''} )
 @app.route('/<path:req_path>')
 def data(req_path):
+    if req_path == 'favicon.ico':
+        return send_file('static/favicon.ico')
+
     global BASE_DIR
-    print("entre")
+
 
     abs_path = os.path.join(BASE_DIR,req_path)
     return send_file(abs_path)
-    

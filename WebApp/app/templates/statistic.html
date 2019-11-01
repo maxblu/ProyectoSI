@@ -1,0 +1,30 @@
+{%extends "base.html" %}
+{% block content %}
+<div class="container">
+<div class="table-responsive">
+    <table class="table table-hover">
+            <thead>
+                    <tr>
+                        
+                        <th class="text-xs-right">Precision</th>
+                        <th class="text-xs-right">Recall</th>
+                        <th class="text-xs-right">F-measure</th>
+                        <th class="text-xs-right">F1-measure</th>
+                        <th class="text-xs-right">R-Precicion</th>
+                        
+                    </tr>
+                    
+                </thead>
+        <tbody>
+        <tr>
+        {% for item in measures %}
+        <td>
+            {{item}}
+        </td>
+        {%endfor%}
+    </tr>
+</tbody>
+    </table>
+</div>
+</div>
+{%endblock%} 

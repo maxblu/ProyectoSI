@@ -3,7 +3,14 @@
 <div >
               <form    method="post">
                       {{ form.csrf_token }}
-                  <div class="input-group-btn" style= "text-align: center">
+                    <div style= "text-align: center">  
+                      {{form.lsi.label}}
+                        {{form.lsi}}
+                        {{form.vectorial.label}}
+                        {{form.vectorial}}
+                    </div> 
+                      <div class="input-group-btn" style= "text-align: center">
+                             
                               {{ form.submit(class_ = "btn btn-default btn-lg" ) }}
                           
                   </div>
