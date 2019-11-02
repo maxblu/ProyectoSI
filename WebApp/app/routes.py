@@ -83,7 +83,6 @@ def search():
         engine.save_retro_feed()
 
     if form.validate_on_submit() :
-        print(engine.retro_feed_data)
 
         search_term = form.query.data # Aqui pasrle la query al sistema para que devuelva las posibles paginas ranqueadas
         search_query = search_term

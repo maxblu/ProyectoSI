@@ -57,7 +57,15 @@ class RecuperationEngine():
         self.file_names = []
         self.datafolder = ''
         self.tf = TfidfVectorizer()
-        self.retro_feed_data = {}
+        
+        val = self.load_retro_feed()
+        if val == None:
+            self.retro_feed_data = {}
+        else:
+            
+            self.retro_feed_data= val
+           
+
 
 
     def save_tfidf_matrix(self,):
@@ -207,7 +215,7 @@ class RecuperationEngine():
 
 
     def load_folder(self, folder="data/"):
-
+        print("load_folder")
         self.datafolder = folder
         self.file_names = []
         self.count = 0
@@ -219,6 +227,8 @@ class RecuperationEngine():
                 if file.endswith(".txt"):
                     with open(new_file, encoding='utf-8') as fd:
                         self.preprocces(fd.read())
+                        if self.count %100 ==0:
+                            print(self.count)
                 else:
                     self.preprocces(self.read_pdf(new_file))
 
@@ -268,27 +278,38 @@ class RecuperationEngine():
 
         """ nota : revisar si lo dejamos como set o no , ya que el set no es json 
         serializable lo que hace que no podamos guardar este fees back en disco por lo menos no sin hacerle nada """
-
+        print(self.retro_feed_data)
         if not self.retro_feed_data.get(key) == None:
             # self.retro_feed_data[key] += items
             for i in items:
                 if not i in self.retro_feed_data[key]:
                     self.retro_feed_data[key].append(i)
-                # self.retro_feed_data[key].add(i)
+            #     # self.retro_feed_data[key].add(i)
         else:
             # self.retro_feed_data[key] = set()
-            self.retro_feed_data[key] = []
-            
-    def load_retro_feed(self,path = 'data/retro_feed_data.json'):
-        with open('data/retro_feed.json','r',encoding='utf-8')as fd:
-            self.retro_feed_data = json.load(fd)
+            self.retro_feed_data[key] = items
 
+    def load_retro_feed(self,path = 'data/retro_feed_data.json'):
+        try:
+            with open('data/retro_feed.json','r',encoding='utf-8')as fd:
+                return json.load(fd)
+        except:
+            return None
 
     def save_retro_feed(self):
-        
-        for key in self.retro_feed_data.keys():
-            with open('data/retro_feed-'+key+'.json','w', encoding='utf-8')as fd:
-                json.dump({key:self.retro_feed_data[key]},fd)
+
+        save_dic = self.load_retro_feed()
+        if save_dic == None:
+            with open('data/retro_feed.json','w', encoding='utf-8')as f:
+                # print(self.retro_feed_data)
+                json.dump(self.retro_feed_data,f)
+        else:
+            save_dic.update(self.retro_feed_data)
+            self.retro_feed_data= save_dic
+            print("ya existe")
+            print(self.retro_feed_data)
+            with open('data/retro_feed.json','w', encoding='utf-8')as fk:
+                json.dump(self.retro_feed_data,fk)
 
     def LSA(self, folder="data/"):
         self.svd = TruncatedSVD(n_components = 300)
