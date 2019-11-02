@@ -13,8 +13,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
-import logic.medidas
+from gensim import models
+from logic.medidas import *
 from tqdm import tqdm
+import re
 import chardet
 import json
 import numpy as np
@@ -22,6 +24,10 @@ import os
 import pdfminer
 import pickle
 import time
+from collections import defaultdict
+from gensim import corpora
+from gensim import similarities
+# from gensim.test.utils import 
 import spacy
 from spacy.lang.es import Spanish , LOOKUP
 from spacy.tokenizer import  Tokenizer
@@ -53,9 +59,18 @@ class RecuperationEngine():
         self.tokenizer = Tokenizer(nlp.vocab)
         self.stemmer = SpanishStemmer()
         self.stopwordsfolder ='data/stopwords/'
+        self.stopwords = []
+
+        ##load stopwords
+        for file in os.listdir(self.stopwordsfolder):
+            with open(self.stopwordsfolder + file, encoding='utf-8') as fd:
+                self.stopwords += fd.read().split()
+        
         self.docs_prepoced =[]
+        self.docs_preproces_gensim = []
         self.file_names = []
         self.datafolder = ''
+        
         self.tf = TfidfVectorizer()
         
         val = self.load_retro_feed()
@@ -66,7 +81,27 @@ class RecuperationEngine():
             self.retro_feed_data= val
            
 
+    def save_lsi_gsim(self):
+        
+        
 
+        self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
+        corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+        print('creating model..')
+        self.lsi_model = models.LsiModel(corpus, id2word=self.dictionary, num_topics= 350)
+        
+        with open("data/lsi_model_gesim.pk",'wb') as pickle_file:
+            pickle.dump(self.lsi_model, pickle_file)
+
+        print('creating matrix ..')
+        self.index = similarities.MatrixSimilarity(self.lsi_model[corpus])
+
+        
+        print('saving...matrix')
+        self.index.save('data/index_lsi')
+
+
+        
 
     def save_tfidf_matrix(self,):
         """En este metodo se llama si no se han construido nunca los indices 
@@ -98,6 +133,9 @@ class RecuperationEngine():
         """Metodo para cargar el modelo """
         with open('data/TfIdfVectorizer.pk', 'rb') as f:
             self.tf = pickle.load(f)
+    def transformQueryGensim(self,query):
+        vec_bow = self.dictionary.doc2bow(query.lower().split())
+        return self.lsi_model[vec_bow]  # convert the query to LSI space
 
     def transformQery(self,query):
         """Permite transformar la query en un vector del espacio de los documentos seguiendo la conversion tfi- df dado el modelo 
@@ -130,9 +168,47 @@ class RecuperationEngine():
         
         """
         k = 100
+        init = time.time()
+        query = self.preprocces(query,query= True)
+
         if model == 'lsi':
             return self.search_query_LSA(query)
-        init = time.time()
+        if model == 'lsi-gensim':
+            query_vector = self.transformQueryGensim(query)
+            sims = self.index[query_vector]
+            result = np.argsort(sims)[self.count-k:]
+
+            pages = []
+            results = []
+            
+            for i in result:
+                pages.append((round(sims[i],4), self.file_names[i]))
+                results.append(self.file_names[i])
+            
+            pages.reverse()
+            results.reverse()
+
+            rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
+
+            if not self.retro_feed_data.get(query) == None:
+                rr , nr , ri = self.calc_rr_nr_ri(query,results)
+                precc = precision(rr,ri)
+                recb  = recall(rr,nr)
+                f_med = f_medida(recb,precc)
+                f1_med = f1_medida(recb,precc)
+                r_prec = r_precision(k,rr )
+
+
+
+
+            time_took =round(time.time()-init,3)
+            print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
+            
+            return pages,time_took, precc, recb , f_med , f1_med , r_prec
+            
+
+
+        
 
         print('Vectorizing Query')
         query_vector = self.transformQery(query)
@@ -155,11 +231,11 @@ class RecuperationEngine():
 
         if not self.retro_feed_data.get(query) == None:
             rr , nr , ri = self.calc_rr_nr_ri(query,results)
-            precc = logic.medidas.precision(rr,ri)
-            recb  = logic.medidas.recall(rr,nr)
-            f_med = logic.medidas.f_medida(recb,precc)
-            f1_med = logic.medidas.f1_medida(recb,precc)
-            r_prec = logic.medidas.r_precision(k,rr )
+            precc = precision(rr,ri)
+            recb  = recall(rr,nr)
+            f_med = f_medida(recb,precc)
+            f1_med = f1_medida(recb,precc)
+            r_prec = r_precision(k,rr )
 
 
 
@@ -183,36 +259,28 @@ class RecuperationEngine():
 
         return (len(rr),len(nr),len(ri))
 
-    def preprocces(self,text):
-        stopwords = []
-
-        ##load stopwords
-        for file in os.listdir(self.stopwordsfolder):
-            with open(self.stopwordsfolder + file, encoding='utf-8') as fd:
-                stopwords += fd.read().split()
+    def preprocces(self,text,query = False):
             
-        doc = self.tokenizer(text)
-        result = " "
+        doc = re.split(r'\W+', text.lower())
 
-        ## stopwords and lematize
+        result = " "
         for word in doc:
             # print(word)
-            if word.text in stopwords:
+            if word in self.stopwords:
                 continue
-            value =  LOOKUP.get(word.text)
+            value =  LOOKUP.get(word)
             if value == None:
-                
-                # lematized_tokens.append(word.text)
-                # result+= " " + word.text
-                result+= " " + self.stemmer.stem( word.text)
-                
+                result+= " " + word
                 continue
-            # lematized_tokens.append(value)
-            # result += " " + value
-            result += " " + self.stemmer.stem(value)
 
-        self.docs_prepoced.append(result)
+            result += " " + value
 
+
+        if not query:
+            self.docs_prepoced.append(result)
+            # self.docs_preproces_gensim.append(result1)
+        else:
+            return result
 
     def load_folder(self, folder="data/"):
         print("load_folder")
@@ -226,12 +294,16 @@ class RecuperationEngine():
                 self.count+=1
                 if file.endswith(".txt"):
                     with open(new_file, encoding='utf-8') as fd:
-                        self.preprocces(fd.read())
-                        if self.count %100 ==0:
-                            print(self.count)
+                        # self.preprocces(fd.read())
+                        text = fd.read()
+                        self.docs_prepoced.append(text)
+                        self.docs_preproces_gensim.append(text.split())
+
+                        # if self.count %100 ==0:
+                        #     # print(self.count)
                 else:
                     self.preprocces(self.read_pdf(new_file))
-
+                
     
     def read_pdf(self, string):
         rsrcmgr = PDFResourceManager()
@@ -271,23 +343,50 @@ class RecuperationEngine():
             return string
         return fix_accents(text)
 
-    def add_retro_feed(self,key,items):
+    def add_retro_feed(self,key,items, results):
         """añade a el diccionario el conjunto de documentos relevantes que marco el usuario 
         para el query key"""
         
 
         """ nota : revisar si lo dejamos como set o no , ya que el set no es json 
         serializable lo que hace que no podamos guardar este fees back en disco por lo menos no sin hacerle nada """
-        print(self.retro_feed_data)
+        # print(self.retro_feed_data)
+
+        aux = []
+
+        for i ,j in results:
+            aux.append(j)
+
+
         if not self.retro_feed_data.get(key) == None:
-            # self.retro_feed_data[key] += items
+
+            self.retro_feed_data[key].pop()
             for i in items:
                 if not i in self.retro_feed_data[key]:
                     self.retro_feed_data[key].append(i)
-            #     # self.retro_feed_data[key].add(i)
+            
+
+            rr , nr , ri = self.calc_rr_nr_ri(key,aux)
+            precc = precision(rr,ri)
+            recb  = recall(rr,nr)
+            f_med = f_medida(recb,precc)
+            f1_med = f1_medida(recb,precc)
+            r_prec = r_precision(10,rr )
+
+            self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
         else:
             # self.retro_feed_data[key] = set()
             self.retro_feed_data[key] = items
+
+            rr , nr , ri = self.calc_rr_nr_ri(key,aux)
+            precc = precision(rr,ri)
+            recb  = recall(rr,nr)
+            f_med = f_medida(recb,precc)
+            f1_med = f1_medida(recb,precc)
+            r_prec = r_precision(10,rr )
+
+            self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
+
 
     def load_retro_feed(self,path = 'data/retro_feed_data.json'):
         try:
@@ -304,10 +403,10 @@ class RecuperationEngine():
                 # print(self.retro_feed_data)
                 json.dump(self.retro_feed_data,f)
         else:
-            save_dic.update(self.retro_feed_data)
-            self.retro_feed_data= save_dic
-            print("ya existe")
-            print(self.retro_feed_data)
+            # save_dic.update(self.retro_feed_data)
+            # self.retro_feed_data= save_dic
+            # print("ya existe")
+            # print(self.retro_feed_data)
             with open('data/retro_feed.json','w', encoding='utf-8')as fk:
                 json.dump(self.retro_feed_data,fk)
 

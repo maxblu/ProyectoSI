@@ -2,6 +2,7 @@ from flask import render_template , url_for , request , send_file , redirect
 from flask_paginate import Pagination , get_page_parameter , get_page_args
 from app.forms import SearchTemplate,SelectDirectory, SaveFeedBack
 from app import app
+from logic.medidas import *
 from tkinter import filedialog
 import tkinter as tk
 import os
@@ -14,6 +15,7 @@ global results
 global time
 global search_query
 global model
+global metrics
 
 @app.route('/',methods=['GET', 'POST'])
 @app.route('/index',methods=['GET', 'POST'])
@@ -40,9 +42,10 @@ def index():
         #     engine.LSA()
 
         if lsi:
-            model= 'lsi'
-            engine.save_tfidf_matrix()
-            engine.LSA()
+            model= 'lsi-gensim'
+            # engine.save_tfidf_matrix()
+            # engine.LSA()
+            engine.save_lsi_gsim()
         elif vec:
             model= 'vec'
             engine.save_tfidf_matrix()
@@ -61,10 +64,10 @@ def index():
 
 @app.route('/statistics')
 def show_statistics():
-
-    measures = [0,0,0,0,0]
+    global engine
+    measures = engine.retro_feed_data
     print("entro")
-    return render_template('statistic.html',measures= measures)
+    return render_template('statistic.html',measures= engine.retro_feed_data)
 
 
 @app.route('/search',methods=['GET', 'POST'])
@@ -74,12 +77,14 @@ def search():
     global time
     global search_query
     global model
+    global metrics
 
     form = SearchTemplate()
     relevantForm =  SaveFeedBack()
 
     if not len(request.form.getlist('relevant')) == 0:
-        engine.add_retro_feed(search_query,request.form.getlist('relevant'))
+        
+        engine.add_retro_feed(search_query,request.form.getlist('relevant'),results)
         engine.save_retro_feed()
 
     if form.validate_on_submit() :
@@ -88,6 +93,8 @@ def search():
         search_query = search_term
 
         results ,time ,precc, recb, f_med, f1_med, r_prec = engine.search_query(search_term, model= model)
+
+        
 
         page, per_page, offset = get_page_args(page_parameter='page',
                                            per_page_parameter='per_page')
