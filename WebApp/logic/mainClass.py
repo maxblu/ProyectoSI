@@ -69,12 +69,13 @@ class RecuperationEngine():
 
         """
         self.count= 0
+        self.model= model
         nlp = Spanish()
         self.tokenizer = Tokenizer(nlp.vocab)
         # self.stemmer = SpanishStemmer()
         self.stopwordsfolder ='data/stopwords/'
         self.stopwords = []
-
+        self.doc_to_index={}
         self.query_opt = {}
 
         ##load stopwords
@@ -95,7 +96,7 @@ class RecuperationEngine():
         else:
             self.load_lsi_model()
 
-        print(self.index)
+        # print(self.index)
         
         val = self.load_retro_feed()
         
@@ -109,8 +110,9 @@ class RecuperationEngine():
     def save_lsi_gsim(self):
 
 
-        self.dictionary = corpora.Dictionary(self.docs_preproces_gensim[:5001])
+        self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
         self.corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+
         print('creating model..')
         self.lsi_model = models.LsiModel(self.corpus, id2word=self.dictionary, num_topics= 350)
         
@@ -122,7 +124,10 @@ class RecuperationEngine():
 
         
         print('saving...matrix')
-        self.index.save(self.datafolder+'/index_lsi')
+        self.index.save(self.datafolder+'/index_lsi.mat')
+
+        self.V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
+
 
 
         
@@ -178,16 +183,19 @@ class RecuperationEngine():
             with open(self.datafolder+'/lsi_model_gesim.pk', 'rb') as f:
                 print("Loading model...")
                 self.lsi_model = pickle.load(f)
-                self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
+                self.dictionary = corpora.Dictionary(self.docs_preproces_gensim[:5001])
+                self.corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+        
+                # self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
             self.load_svd_matrix()
+            self.V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
+    
 
 
 
         except:
             self.save_lsi_gsim()
-            
-    
-    
+
     def transformQueryGensim(self,query):
         vec_bow = self.dictionary.doc2bow(query.lower().split())
         return self.lsi_model[vec_bow]  # convert the query to LSI space
@@ -206,7 +214,7 @@ class RecuperationEngine():
 
 
 
-    def rank(self, query_vector,matrix,k=100):
+    def rank(self, query_vector,matrix,k=20):
         """ Genera el rankink de los documentos más parecidos a la query en este caso indicado por el parametro k por default los 1000
         documentos más parecidos. Se usa la similaridad de coseno ya que es la que mejor resultados ha alcansado para este modelo"""
         result = cosine_similarity(query_vector,matrix)
@@ -226,13 +234,20 @@ class RecuperationEngine():
         k = 20
         init = time.time()
         query = self.preprocces(query,query= True)
+        print(query)
 
+        # if not self.query_opt.get(query)== None:
+        
         # if model == 'lsi':
         #     return self.search_query_LSA(query)
         if model == 'lsi-gensim':
-            query_vector = self.transformQueryGensim(query)
             
-            # print(diquery_vector)
+            try:
+                query_vector = self.query_opt[query]
+                print('modificado: ', query_vector)
+            except:
+                query_vector = self.transformQueryGensim(query)
+                print('no la tengo')
 
             sims = self.index[query_vector]
             result = np.argsort(sims)[self.count-k:]
@@ -272,9 +287,15 @@ class RecuperationEngine():
 
 
         
+        try:
+                query_vector = self.query_opt[query]
+                print('modificado: ', query_vector)
+        except:
+                query_vector = self.transformQery(query)
+                print('no la tengo')
 
-        print('Vectorizing Query')
-        query_vector = self.transformQery(query)
+        # print('Vectorizing Query')
+        # query_vector = self.transformQery(query)
 
         result, n_Mayores = self.rank(query_vector,self.tfidfmatrix)
 
@@ -296,8 +317,6 @@ class RecuperationEngine():
             rr , nr , ri = self.calc_rr_nr_ri(query,results)
             
             precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,k)
-            # opt_query = 
-            
             
 
             
@@ -320,7 +339,7 @@ class RecuperationEngine():
             f_med = f_medida(recb,precc)
             f1_med = f1_medida(recb,precc)
             r_prec = r_precision(k,rr )
-            return prec,recb,f_med,f1_med,r_prec
+            return precc,recb,f_med,f1_med,r_prec
 
 
     def calc_rr_nr_ri(self,query,results):
@@ -341,19 +360,19 @@ class RecuperationEngine():
             
         doc = re.split(r'\W+', text.lower())
 
-        result = " "
+        result = ""
         for word in doc:
             # print(word)
             if word in self.stopwords:
                 continue
             value =  LOOKUP.get(word)
             if value == None:
-                result+= " " + word
+                result+= word +" "
                 continue
 
-            result += " " + value
+            result += value + " "
 
-
+        # result = str(result[:-1])
         if not query:
             self.docs_prepoced.append(result)
             # self.docs_preproces_gensim.append(result1)
@@ -369,11 +388,12 @@ class RecuperationEngine():
             if file.endswith(".pdf") or file.endswith(".txt"):
                 self.file_names.append(file)
                 new_file = os.path.join(self.datafolder,file)
-                self.count+=1
+                
                 if file.endswith(".txt"):
                     with open(new_file, encoding='utf-8') as fd:
                         # self.preprocces(fd.read())
                         text = fd.read()
+                        self.doc_to_index[file] = self.count
                         self.docs_prepoced.append(text)
                         self.docs_preproces_gensim.append(text.split())
 
@@ -381,7 +401,7 @@ class RecuperationEngine():
                         #     # print(self.count)
                 else:
                     self.preprocces(self.read_pdf(new_file))
-
+                self.count+=1
     def read_pdf(self, string):
         rsrcmgr = PDFResourceManager()
         retstr = StringIO()
@@ -448,8 +468,7 @@ class RecuperationEngine():
 
             precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,20)
 
-            V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
-            
+            self.generate_opt_query(key,rr,ri)
 
            
             self.retro_feed_data[key].append([precc,recb,f1_med,f_med,r_prec])
@@ -461,10 +480,51 @@ class RecuperationEngine():
             # print(self.svdMatrix[ 0])
             precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,20)
 
+            self.generate_opt_query(key,rr,ri)
+
             self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
 
 
-    # def generate_opt_query(query,rr,ri):
+    def generate_opt_query(self,query,rr,ri):
+
+        rr_len =len(rr)
+        rri_len =len(ri)
+        dj_r = []
+        dj_ri = []
+
+        if self.model== 'vec':
+            self.V = self.tfidfmatrix
+        
+        for file in rr:
+            dj_r.append(self.V[self.doc_to_index[file]])
+            try :
+                aux+= self.V[self.doc_to_index[file]]
+            except:
+                aux = self.V[self.doc_to_index[file]]
+
+        for file in ri:
+            dj_ri.append(self.V[self.doc_to_index[file]])
+            try :
+                aux_i+= self.V[self.doc_to_index[file]]
+            except:
+                aux_i = self.V[self.doc_to_index[file]]
+
+        # count = 0
+        # for doc in range(0,self.count):
+        #     try:  
+        #         result += V[doc]
+        #         count+=1
+
+        #     except:
+               
+        #         result = V[doc]
+        #         count= 1
+
+        # result = result - aux
+
+        final = aux/rr_len - aux_i/rri_len
+        print(query)
+        self.query_opt[query+" "] = final
         
 
 

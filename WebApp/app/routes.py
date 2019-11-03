@@ -89,6 +89,7 @@ def search():
         search_term = form.query.data # Aqui pasrle la query al sistema para que devuelva las posibles paginas ranqueadas
         search_query = search_term
 
+        print('term:', search_term)
         results ,time ,precc, recb, f_med, f1_med, r_prec = engine.search_query(search_term, model= model)
 
         

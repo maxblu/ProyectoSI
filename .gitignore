@@ -13,3 +13,5 @@ WebApp/app/__pycache__/*
 *.pk
 *.ipynb
 *.rar
+*.mat
+
