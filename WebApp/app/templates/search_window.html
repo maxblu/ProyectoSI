@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 
+{%block navbar%}
+<li role="presentation"><a href="/search">Search </a></li>
+<li role="presentation"><a href="/statistics">Statistics </a></li>
+
+{%endblock%}
+
 {% block content %}
 
 
@@ -57,7 +63,7 @@
                     {{ relevantForm.submit(class_ = "btn btn-default btn-lg" ) }}
                 
         </div></form>
-            
+        
         </div>
 
 

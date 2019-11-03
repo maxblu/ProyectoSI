@@ -47,7 +47,7 @@ class RecuperationEngine():
     similaridad de coseno para poder ver que tanto se parece  a cada vector documento y luego generar un ranking y devolver los 1000
     más parecidos
     """
-    def __init__(self):
+    def __init__(self,model='vec', BASE_DIR = 'data/'):
         """ Aqui se instancia las estructuras que se basa el modelo 
             si es la primera ves se calcula el modela y la matrix de índeces
             sino se carga de la crapeta data
@@ -57,7 +57,7 @@ class RecuperationEngine():
         self.count= 0
         nlp = Spanish()
         self.tokenizer = Tokenizer(nlp.vocab)
-        self.stemmer = SpanishStemmer()
+        # self.stemmer = SpanishStemmer()
         self.stopwordsfolder ='data/stopwords/'
         self.stopwords = []
 
@@ -70,10 +70,18 @@ class RecuperationEngine():
         self.docs_preproces_gensim = []
         self.file_names = []
         self.datafolder = ''
+        self.load_folder(BASE_DIR)
+
+        if model == 'vec':
+            self.load_tf_vectorizer()
+
+        else:
+            self.load_lsi_model()
+
         
-        self.tf = TfidfVectorizer()
         
         val = self.load_retro_feed()
+        
         if val == None:
             self.retro_feed_data = {}
         else:
@@ -90,7 +98,7 @@ class RecuperationEngine():
         print('creating model..')
         self.lsi_model = models.LsiModel(corpus, id2word=self.dictionary, num_topics= 350)
         
-        with open("data/lsi_model_gesim.pk",'wb') as pickle_file:
+        with open( self.datafolder+"/lsi_model_gesim.pk",'wb') as pickle_file:
             pickle.dump(self.lsi_model, pickle_file)
 
         print('creating matrix ..')
@@ -98,7 +106,7 @@ class RecuperationEngine():
 
         
         print('saving...matrix')
-        self.index.save('data/index_lsi')
+        self.index.save(self.datafolder+'/index_lsi')
 
 
         
@@ -113,26 +121,57 @@ class RecuperationEngine():
 
         En este caso la matrix llega a tener dimensiones de  10000* 450000 y es una matri muy esparcida.
         """
+        self.tf = TfidfVectorizer()
+        
 
         print('Computing Tf-Idf Matrix...')
         self.tfidfmatrix = self.tf.fit_transform( self.docs_prepoced)
         
         print('Saving Matrix...')
-        np.save('data/Tf-Idf-matrix',self.tfidfmatrix) 
+        np.save(self.datafolder+'/Tf-Idf-matrix',self.tfidfmatrix) 
 
         print('Saving Model...')
-        with open('data/TfIdfVectorizer.pk', 'wb') as f:
+        with open(self.datafolder+'/TfIdfVectorizer.pk', 'wb') as f:
             pickle.dump(self.tf,f)
 
     def load_tfidf_matrix(self):
 
         """Metodo para cargar la matrix de pesos del modelo ya calculada con anterioridad"""
-        self.tfidfmatrix= np.load('data/Tf-Idf-matrix.npy').all()
+        
+        self.tfidfmatrix= np.load(self.datafolder+'/Tf-Idf-matrix.npy').all()
     
     def load_tf_vectorizer(self):
         """Metodo para cargar el modelo """
-        with open('data/TfIdfVectorizer.pk', 'rb') as f:
-            self.tf = pickle.load(f)
+        try:
+            with open(self.datafolder+'/TfIdfVectorizer.pk', 'rb') as f:
+                self.tf = pickle.load(f)
+            
+            self.load_tfidf_matrix()
+
+        except:
+            self.save_tfidf_matrix()
+
+    def load_svd_matrix(self):
+    
+        """Metodo para cargar la matrix de pesos del modelo ya calculada con anterioridad"""
+        self.index = similarities.MatrixSimilarity.load(self.datafolder+'/index_lsi')
+    
+    def load_lsi_model(self):
+        """Metodo para cargar el modelo """
+        try:
+            with open(self.datafolder+'/lsi_model_gesim.pk', 'rb') as f:
+                print("Loading model...")
+                self.lsi_model = pickle.load(f)
+                self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
+            self.load_svd_matrix()
+
+
+
+        except:
+            self.save_lsi_gsim()
+            
+    
+    
     def transformQueryGensim(self,query):
         vec_bow = self.dictionary.doc2bow(query.lower().split())
         return self.lsi_model[vec_bow]  # convert the query to LSI space

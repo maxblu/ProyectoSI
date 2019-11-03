@@ -33,30 +33,28 @@ def index():
         vec = form.vectorial.data
 
         BASE_DIR = filedialog.askdirectory()
-        engine = RecuperationEngine()
-        engine.load_folder(BASE_DIR)
-
-        # if lsi and vec:
-        #     model = 'lsi'
-        #     engine.save_tfidf_matrix()
-        #     engine.LSA()
 
         if lsi:
             model= 'lsi-gensim'
             # engine.save_tfidf_matrix()
             # engine.LSA()
-            engine.save_lsi_gsim()
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            # engine.save_lsi_gsim()
         elif vec:
             model= 'vec'
-            engine.save_tfidf_matrix()
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            # engine.save_tfidf_matrix()
             # engine.LSA()
         else:
-            model= 'lsi'
-            engine.save_tfidf_matrix()
-            engine.LSA()
-
+            model= 'lsi-gen'
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            # engine.save_tfidf_matrix()
+            # engine.LSA()
 
         
+
+        # engine.load_folder(BASE_DIR)
+
         search_query = []
         return redirect('/search')
 
@@ -65,7 +63,6 @@ def index():
 @app.route('/statistics')
 def show_statistics():
     global engine
-    measures = engine.retro_feed_data
     print("entro")
     return render_template('statistic.html',measures= engine.retro_feed_data)
 
