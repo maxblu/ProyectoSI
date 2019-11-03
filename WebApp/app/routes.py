@@ -12,10 +12,12 @@ from logic.mainClass import RecuperationEngine
 global BASE_DIR
 global engine
 global results
+global resultsi
 global time
 global search_query
 global model
 global metrics
+
 
 @app.route('/',methods=['GET', 'POST'])
 @app.route('/index',methods=['GET', 'POST'])
@@ -26,15 +28,20 @@ def index():
         global engine
         global BASE_DIR
         global results
+        global resultsi
         global search_query
         global model
         results = []
+        resultsi = []
         lsi =form.lsi.data
         vec = form.vectorial.data
 
         BASE_DIR = filedialog.askdirectory()
 
-        if lsi:
+        if vec and lsi:
+            model= 'both'
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+        elif lsi:
             model= 'lsi-gensim'
             # engine.save_tfidf_matrix()
             # engine.LSA()
@@ -45,9 +52,9 @@ def index():
             engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
             # engine.save_tfidf_matrix()
             # engine.LSA()
-        else:
-            model= 'lsi-gen'
-            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+        # else:
+        #     model= 'lsi-gen'
+        #     engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
             # engine.save_tfidf_matrix()
             # engine.LSA()
 
@@ -116,6 +123,54 @@ def search():
         return render_template('search_window.html',relevantForm=relevantForm, form=form, paginator=paginator, results= subresult,time=time )
 
     return render_template('search_window.html', title='Search',  form=form)
+
+@app.route('/compare',methods=['GET', 'POST'])
+def compare():
+    global engine
+    global results
+    global resultsi
+    global time
+    global search_query
+    # global model
+    global metrics
+
+    form = SearchTemplate()
+    if form.validate_on_submit() :
+
+        search_term = form.query.data # Aqui pasrle la query al sistema para que devuelva las posibles paginas ranqueadas
+        search_query = search_term
+
+        results,    time,   precc,  recb,  f_med,  f1_med,  r_prec  = engine.search_query(search_term, model= 'vec')
+        resultsi,   timei,  precci, recbi, f_medi, f1_medi, r_preci = engine.search_query(search_term, model= 'lsi-gensim')
+
+        page, per_page, offset = get_page_args(page_parameter='page',
+                                           per_page_parameter='per_page')
+        total = len(resultsi)
+
+        subresult  = results[0:per_page +1]
+        subresulti = resultsi[0:per_page +1]
+
+        zi = zip(subresult, subresulti)
+
+        paginator  = Pagination(total,page =page , total=total, per_page = per_page, search=True , css_framework='bootstrap4' , record_name='results' )
+        return render_template('compare.html', form=form, paginator=paginator, results=zi, time=time)
+
+    total = len(resultsi)
+    if request.args.get('page') or not total == 0:
+        page, per_page, offset = get_page_args(page_parameter='page',
+                                           per_page_parameter='per_page')
+
+        paginator = Pagination(total,page =page , total= total, per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
+
+        subresult   = results[offset: offset+per_page]
+        subresulti  = resultsi[offset: offset+per_page]
+
+        zi = zip(subresult, subresulti)
+
+        return render_template('compare.html', form=form, paginator=paginator, results= zi,time=time )
+
+    return render_template('compare.html', title='Compare',  form=form)
+
 
 @app.route('/', defaults={'req_path':''} )
 @app.route('/<path:req_path>')

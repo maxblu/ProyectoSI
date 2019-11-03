@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{%block navbar%}
+<li role="presentation"><a href="/search">Search </a></li>
+<li role="presentation"><a href="/statistics">Statistics </a></li>
+<li role="presentation"><a href="/compare">Compare</a></li>
+
+
+{%endblock%}
+
+{% block content %}
+    <div>
+        <form method="post">
+            {{ form.csrf_token }}
+            <label class="control-label" for="search-input"> </label>
+            <div class="input-group">
+                {{ form.query (class_ = "form-control input-lg query" )  }}
+                <div class="input-group-btn">
+                    {{ form.submit(class_ = "btn btn-default btn-lg" ) }}
+                </div>
+            </div>
+        </form>
+    </div>
+    <div>
+        {% if results %}
+            <div class="container">
+                {{paginator.links}}
+                {{paginator.info}}
+                <div>
+                    Results in {{time}} seconds
+                </div>
+            </div>
+            <div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-xs-right">Vectorial</th>
+                                <th class="text-xs-right">Similarity</th>
+                                <th class="text-xs-right">LSI</th>
+                                <th class="text-xs-right">Similarity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for (rank, result),(rank1, result1) in results %}
+                            <tr>
+                                <td>
+                                    <div><a href="{{ result }}">{{ result }} <br></div>
+                                </td>
+                                <td><div>{{rank}}<br></div></td>
+                                <td>
+                                    <div><a href="{{ result1 }}">{{ result1 }} <br></div>
+                                </td>
+                                <td><div>{{rank1}}<br></div></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+

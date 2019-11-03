@@ -3,73 +3,64 @@
 {%block navbar%}
 <li role="presentation"><a href="/search">Search </a></li>
 <li role="presentation"><a href="/statistics">Statistics </a></li>
+<li role="presentation"><a href="/compare">Compare </a></li>
+
 
 {%endblock%}
 
 {% block content %}
-
-
-<div>
-    
-        <form   method="post">
-                {{ form.csrf_token }}
+    <div>
+        <form method="post">
+            {{ form.csrf_token }}
             <label class="control-label" for="search-input"> </label>
             <div class="input-group">
                 {{ form.query (class_ = "form-control input-lg query" )  }}
-            <div class="input-group-btn">
-                        {{ form.submit(class_ = "btn btn-default btn-lg" ) }}
-                    
-            </div>
+                <div class="input-group-btn">
+                    {{ form.submit(class_ = "btn btn-default btn-lg" ) }}
+                </div>
             </div>
         </form>
     </div>
-    {% if results %}
-    
-    <div class="container">
-    {{paginator.links}}
-    {{paginator.info}}
-    <form method="POST"  >
-            {{ form.csrf_token }}
-    <div class="table-responsive">
-            <table class="table table-hover">
-                    <thead>
-                            <tr>
-                                
-                                <th class="text-xs-right">Results in {{time}} seconds</th>
-                                <th class="text-xs-right">Similarity</th>
-                                <th class="text-xs-right">Is relevant?</th>
-                                
-                            </tr>
-                            
-                        </thead>
-                        <tbody>
-            {% for rank ,result in results %}
-            <tr>
-                
-                <td>
-                    <div><a href="{{ result }}">{{ result }} <br></div>
-                    <!-- <div>{{sumary}}</div> -->
-                </td>
-                <td><div>{{rank}}<br></div></td>
-                <td> <label class="btn btn-success pzt active">
-                        <input type="checkbox" name="relevant" value="{{result}}" >
-                    </label></td>
-            </tr>
-            {% endfor %}
-                
-                </tbody>
-            </table>
-            <div class="input-group-btn" style= "text-align: center">
-                    {{ relevantForm.submit(class_ = "btn btn-default btn-lg" ) }}
-                
-        </div></form>
-        
-        </div>
-
-
-
-    
-        
+    <div>
+        {% if results %}
+            <div class="container">
+                {{paginator.links}}
+                {{paginator.info}}
+                <form method="POST"  >
+                    {{ form.csrf_token }}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-xs-right">Results in {{time}} seconds</th>
+                                    <th class="text-xs-right">Similarity</th>
+                                    <th class="text-xs-right">Is relevant?</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rank ,result in results %}
+                                <tr>
+                                    <td>
+                                        <div><a href="{{ result }}">{{ result }} <br></div>
+                                        <!-- <div>{{sumary}}</div> -->
+                                    </td>
+                                    <td><div>{{rank}}<br></div></td>
+                                    <td> 
+                                        <label class="btn btn-success pzt active">
+                                            <input type="checkbox" name="relevant" value="{{result}}" >
+                                        </label>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="input-group-btn" style= "text-align: center">
+                            {{ relevantForm.submit(class_ = "btn btn-default btn-lg" ) }}
+                        </div>
+                    </div>
+                </form>
+            </div>
         {% endif %}
+    </div>
 {% endblock %}
 

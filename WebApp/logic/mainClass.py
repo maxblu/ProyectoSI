@@ -92,9 +92,12 @@ class RecuperationEngine():
 
         if model == 'vec':
             self.load_tf_vectorizer()
-
+        elif model == "lsi-gensim":
+            self.load_lsi_model()
         else:
             self.load_lsi_model()
+            self.load_tf_vectorizer()
+
 
         # print(self.index)
         
@@ -223,7 +226,7 @@ class RecuperationEngine():
         return (result,index_sorted[0][self.count-k: ])
 
     @chronodecorator
-    def search_query(self, query,model= 'vec'):
+    def search_query(self, query, model= 'vec'):
         """Método principal del motor de búsqueda primero revisa si es un url o no. 
         Si lo es revisa si ya lo tiene indexado lo busca yllama a rank sino lo manda scrapear y con  todo el preprocesado que lleva
         y llama a rank. Esto siempre despues de haber tranforamdo el vector de consulta al espacio de los documentos indexados.
@@ -240,7 +243,7 @@ class RecuperationEngine():
         
         # if model == 'lsi':
         #     return self.search_query_LSA(query)
-        if model == 'lsi-gensim':
+        if model == 'lsi-gensim' or model == 'both':
             
             try:
                 query_vector = self.query_opt[query]
@@ -283,10 +286,8 @@ class RecuperationEngine():
             print('Your search took ' + str(round(time.time()-init,4))+ ' seconds')
             
             return pages,time_took, precc, recb , f_med , f1_med , r_prec
-            
 
 
-        
         try:
                 query_vector = self.query_opt[query]
                 print('modificado: ', query_vector)
