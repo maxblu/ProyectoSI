@@ -15,6 +15,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 from gensim import models
 from logic.medidas import *
+import gensim
 from tqdm import tqdm
 import re
 import chardet
@@ -25,6 +26,7 @@ import pdfminer
 import pickle
 import time
 from collections import defaultdict
+from gensim.summarization import keywords
 from gensim import corpora
 from gensim import similarities
 # from gensim.test.utils import 
@@ -36,6 +38,18 @@ from nltk.stem.snowball import SpanishStemmer
 
 
 # from gensim.summarization import summarize
+
+def chronodecorator(func):
+    def wrapper(*arg, **kwargs):
+    
+                t = time.process_time()
+                print("%27s Function: %10s" % (str(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime())),func.__name__,))
+                res = func(*arg, **kwargs)
+                print("%27s Function: %10s Time: %4f Output: %20s"  % (str(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime())),func.__name__,time.process_time()-t, str(res)[:min(len(str(res)),20)]))
+                return res
+	
+    return wrapper
+
 
 
 
@@ -61,6 +75,8 @@ class RecuperationEngine():
         self.stopwordsfolder ='data/stopwords/'
         self.stopwords = []
 
+        self.query_opt = {}
+
         ##load stopwords
         for file in os.listdir(self.stopwordsfolder):
             with open(self.stopwordsfolder + file, encoding='utf-8') as fd:
@@ -71,6 +87,7 @@ class RecuperationEngine():
         self.file_names = []
         self.datafolder = ''
         self.load_folder(BASE_DIR)
+        # self.docs_index = {}
 
         if model == 'vec':
             self.load_tf_vectorizer()
@@ -78,7 +95,7 @@ class RecuperationEngine():
         else:
             self.load_lsi_model()
 
-        
+        print(self.index)
         
         val = self.load_retro_feed()
         
@@ -88,21 +105,20 @@ class RecuperationEngine():
             
             self.retro_feed_data= val
            
-
+    @chronodecorator
     def save_lsi_gsim(self):
-        
-        
 
-        self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
-        corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+
+        self.dictionary = corpora.Dictionary(self.docs_preproces_gensim[:5001])
+        self.corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
         print('creating model..')
-        self.lsi_model = models.LsiModel(corpus, id2word=self.dictionary, num_topics= 350)
+        self.lsi_model = models.LsiModel(self.corpus, id2word=self.dictionary, num_topics= 350)
         
         with open( self.datafolder+"/lsi_model_gesim.pk",'wb') as pickle_file:
             pickle.dump(self.lsi_model, pickle_file)
 
         print('creating matrix ..')
-        self.index = similarities.MatrixSimilarity(self.lsi_model[corpus])
+        self.index = similarities.MatrixSimilarity(self.lsi_model[self.corpus])
 
         
         print('saving...matrix')
@@ -110,7 +126,7 @@ class RecuperationEngine():
 
 
         
-
+    @chronodecorator
     def save_tfidf_matrix(self,):
         """En este metodo se llama si no se han construido nunca los indices 
         Siguiendo la idea del modelo vectorial se construye una matrix termino-documento
@@ -198,6 +214,7 @@ class RecuperationEngine():
         index_sorted = np.argsort(result)
         return (result,index_sorted[0][self.count-k: ])
 
+    @chronodecorator
     def search_query(self, query,model= 'vec'):
         """Método principal del motor de búsqueda primero revisa si es un url o no. 
         Si lo es revisa si ya lo tiene indexado lo busca yllama a rank sino lo manda scrapear y con  todo el preprocesado que lleva
@@ -206,14 +223,17 @@ class RecuperationEngine():
 
         
         """
-        k = 100
+        k = 20
         init = time.time()
         query = self.preprocces(query,query= True)
 
-        if model == 'lsi':
-            return self.search_query_LSA(query)
+        # if model == 'lsi':
+        #     return self.search_query_LSA(query)
         if model == 'lsi-gensim':
             query_vector = self.transformQueryGensim(query)
+            
+            # print(diquery_vector)
+
             sims = self.index[query_vector]
             result = np.argsort(sims)[self.count-k:]
 
@@ -227,21 +247,25 @@ class RecuperationEngine():
             pages.reverse()
             results.reverse()
 
+
+
+
+
             rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
 
             if not self.retro_feed_data.get(query) == None:
                 rr , nr , ri = self.calc_rr_nr_ri(query,results)
-                precc = precision(rr,ri)
-                recb  = recall(rr,nr)
-                f_med = f_medida(recb,precc)
-                f1_med = f1_medida(recb,precc)
-                r_prec = r_precision(k,rr )
+
+                precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,k)
+
+    
+
 
 
 
 
             time_took =round(time.time()-init,3)
-            print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
+            print('Your search took ' + str(round(time.time()-init,4))+ ' seconds')
             
             return pages,time_took, precc, recb , f_med , f1_med , r_prec
             
@@ -260,7 +284,7 @@ class RecuperationEngine():
         results =[]
 
         for i in n_Mayores:
-            pages.append((round(result[0][i],3), self.file_names[i] ))
+            pages.append((round(result[0][i],4), self.file_names[i] ))
             results.append(self.file_names[i])
 
         pages.reverse()
@@ -270,12 +294,13 @@ class RecuperationEngine():
 
         if not self.retro_feed_data.get(query) == None:
             rr , nr , ri = self.calc_rr_nr_ri(query,results)
-            precc = precision(rr,ri)
-            recb  = recall(rr,nr)
-            f_med = f_medida(recb,precc)
-            f1_med = f1_medida(recb,precc)
-            r_prec = r_precision(k,rr )
+            
+            precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,k)
+            # opt_query = 
+            
+            
 
+            
 
 
 
@@ -283,6 +308,20 @@ class RecuperationEngine():
         print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
         
         return pages,time_took, precc, recb , f_med , f1_med , r_prec
+
+    
+    def cal_measures(self, rr,nr,ri,k):
+
+            rr = len(rr)
+            nr = len(nr)
+            ri = len(ri)
+            precc = precision(rr,ri)
+            recb  = recall(rr,nr)
+            f_med = f_medida(recb,precc)
+            f1_med = f1_medida(recb,precc)
+            r_prec = r_precision(k,rr )
+            return prec,recb,f_med,f1_med,r_prec
+
 
     def calc_rr_nr_ri(self,query,results):
         """devuelve una tripla con 
@@ -296,7 +335,7 @@ class RecuperationEngine():
         ri = results.difference(relevants)
         nr =  relevants.difference(results)
 
-        return (len(rr),len(nr),len(ri))
+        return (rr,nr,ri)
 
     def preprocces(self,text,query = False):
             
@@ -342,8 +381,7 @@ class RecuperationEngine():
                         #     # print(self.count)
                 else:
                     self.preprocces(self.read_pdf(new_file))
-                
-    
+
     def read_pdf(self, string):
         rsrcmgr = PDFResourceManager()
         retstr = StringIO()
@@ -397,6 +435,7 @@ class RecuperationEngine():
             aux.append(j)
 
 
+
         if not self.retro_feed_data.get(key) == None:
 
             self.retro_feed_data[key].pop()
@@ -406,25 +445,27 @@ class RecuperationEngine():
             
 
             rr , nr , ri = self.calc_rr_nr_ri(key,aux)
-            precc = precision(rr,ri)
-            recb  = recall(rr,nr)
-            f_med = f_medida(recb,precc)
-            f1_med = f1_medida(recb,precc)
-            r_prec = r_precision(10,rr )
 
-            self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
+            precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,20)
+
+            V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
+            
+
+           
+            self.retro_feed_data[key].append([precc,recb,f1_med,f_med,r_prec])
         else:
             # self.retro_feed_data[key] = set()
             self.retro_feed_data[key] = items
 
             rr , nr , ri = self.calc_rr_nr_ri(key,aux)
-            precc = precision(rr,ri)
-            recb  = recall(rr,nr)
-            f_med = f_medida(recb,precc)
-            f1_med = f1_medida(recb,precc)
-            r_prec = r_precision(10,rr )
+            # print(self.svdMatrix[ 0])
+            precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,20)
 
             self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
+
+
+    # def generate_opt_query(query,rr,ri):
+        
 
 
     def load_retro_feed(self,path = 'data/retro_feed_data.json'):
