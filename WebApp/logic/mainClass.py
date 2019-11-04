@@ -80,18 +80,18 @@ class RecuperationEngine():
         self.stopwords = []
         self.doc_to_index={}
         self.query_opt = {}
-
+        self.relevantes={}
         ##load stopwords
         for file in os.listdir(self.stopwordsfolder):
             with open(self.stopwordsfolder + file, encoding='utf-8') as fd:
                 self.stopwords += fd.read().split()
-        
         self.docs_prepoced =[]
         self.docs_preproces_gensim = []
         self.file_names = []
         self.datafolder = ''
         self.load_folder(BASE_DIR)
         # self.docs_index = {}
+        self.load_relevant()
 
         if model == 'vec':
             self.load_tf_vectorizer()
@@ -340,7 +340,10 @@ class RecuperationEngine():
             ri: irrelevantes recuperados
          """
         results = set(results)
-        relevants = set( self.retro_feed_data[query])
+        if not self.relevantes.get(query) == None:
+            relevants = set( self.relevantes[query])
+        else:
+            relevants = set( self.retro_feed_data[query])
         rr = relevants.intersection(results)
         ri = results.difference(relevants)
         nr =  relevants.difference(results)
@@ -478,6 +481,38 @@ class RecuperationEngine():
             self.generate_opt_query(key,rr,ri)
 
             self.retro_feed_data[key].append([precc,recb,f1_med,f1_med,r_prec])
+
+    def add_relevant(self,query, relevants):
+
+        if not self.relevantes.get(query) == None:
+            for item in relevants:
+                if not item in self.relevantes.get(query):
+                    self.relevantes[query].append(item)
+        else:
+            self.relevantes[query] = relevants
+    def save_relevante(self):
+
+        with open(self.datafolder+'/relevantes.json','w',encoding='utf-8') as fd:
+            json.dump(self.relevantes,fd)
+
+
+
+
+    def load_relevant(self):
+
+        try :
+            with open(self.datafolder+"/relevantes.json",encoding='utf-8') as fd:
+                self.relevantes = json.load(fd)
+                print('cargue')
+            
+        
+        except:
+            self.relevantes= {}
+
+
+
+
+
 
 
     def generate_opt_query(self,query,rr,ri):

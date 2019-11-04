@@ -112,7 +112,7 @@ def search():
         total = len(results)
 
 
-        subresult = results[0:per_page +1]
+        subresult = results[0:per_page]
         paginator = Pagination(total,page =page , total= total,per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
 
         return render_template('search_window.html',relevantForm= relevantForm, form=form, paginator=paginator, results=subresult,time=time,metrics = metrics )
@@ -129,6 +129,34 @@ def search():
         return render_template('search_window.html',relevantForm=relevantForm, form=form, paginator=paginator, results= subresult,time=time ,metrics = metrics)
 
     return render_template('search_window.html', title='Search',  form=form)
+
+@app.route('/relevants',methods=['GET', 'POST'])
+def relevant():
+    global engine
+    global search_query
+
+    form = SearchTemplate()
+    relevantForm =  SaveFeedBack()
+
+    results = engine.file_names
+    total = len(results)
+
+    page, per_page, offset = get_page_args(page_parameter='page', per_page_parameter='per_page')
+    paginator = Pagination(total, page=page, total=total, per_page=per_page, search=True, css_framework='bootstrap4' , record_name='results' )
+    subresult = zip(results[offset: offset+per_page],[t[:min(100,len(t))]+"..." for t in engine.docs_prepoced[offset: offset+per_page]])
+
+    if form.validate_on_submit() :
+        search_query = form.query.data 
+        if not len(request.form.getlist('relevant')) == 0:
+            engine.add_relevant(search_query, request.form.getlist('relevant'))
+            engine.save_relevante()
+        return render_template('relevants.html',relevantForm=relevantForm, form=form, paginator=paginator, results=subresult )
+
+    total = len(results)
+    if request.args.get('page') or not total == 0:
+        return render_template('relevants.html',relevantForm=relevantForm, form=form, paginator=paginator, results= subresult)
+
+    return render_template('relevants.html', title='relevant',  form=form)
 
 @app.route('/compare',methods=['GET', 'POST'])
 def compare():
@@ -156,8 +184,8 @@ def compare():
                                            per_page_parameter='per_page')
         total = len(resultsi)
 
-        subresult  = results[0:per_page +1]
-        subresulti = resultsi[0:per_page +1]
+        subresult  = results[0:per_page]
+        subresulti = resultsi[0:per_page]
 
         zi = zip(subresult, subresulti)
 
