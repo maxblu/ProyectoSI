@@ -34,6 +34,7 @@ from gensim import similarities
 import spacy
 from spacy.lang.es import Spanish , LOOKUP
 from spacy.lang.en import LOOKUP as enL
+from spacy.lang.en import  English
 from spacy.tokenizer import  Tokenizer
 import nltk
 from nltk.stem.snowball import SpanishStemmer
@@ -63,18 +64,29 @@ class RecuperationEngine():
     similaridad de coseno para poder ver que tanto se parece  a cada vector documento y luego generar un ranking y devolver los 1000
     más parecidos
     """
-    def __init__(self,model='vec', BASE_DIR = 'data/',numTopics= 300):
+    def __init__(self,model='vec', BASE_DIR = 'data/',numTopics= 350,rank= 20):
         """ Aqui se instancia las estructuras que se basa el modelo 
             si es la primera ves se calcula el modela y la matrix de índeces
             sino se carga de la crapeta data
             Esta matiz se puede realizar gracias a los json guardaos producto del scrapeo. 
 
         """
+        if  numTopics == None:
+            self.numTopics = 350
+        else:
+            self.numTopics = numTopics
+
         self.numTopics= numTopics
         self.count= 0
         self.model= model
         nlp = Spanish()
+        # nlpen = English()
+        if rank == None:
+            self.k = 20
+        else:
+            self.k = rank
         self.tokenizer = Tokenizer(nlp.vocab)
+        # self.tokenizer_en = Tokenizer(nlpen)
         # self.stemmer = SpanishStemmer()
         self.stopwordsfolder ='data/stopwords/'
         self.stopwords = []
@@ -194,7 +206,9 @@ class RecuperationEngine():
             with open(self.datafolder+'/lsi_model_gesim.pk', 'rb') as f:
                 print("Loading model...")
                 self.lsi_model = pickle.load(f)
-                print('lo cargue')
+                # print(self.lsi_model.show_topic(0  ))
+                # self.lsi_model.sh
+                # print('lo cargue')
                 self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
                 corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
                 
@@ -226,13 +240,13 @@ class RecuperationEngine():
 
 
 
-    def rank(self, query_vector,matrix,k=20):
+    def rank(self, query_vector,matrix):
         """ Genera el rankink de los documentos más parecidos a la query en este caso indicado por el parametro k por default los 1000
         documentos más parecidos. Se usa la similaridad de coseno ya que es la que mejor resultados ha alcansado para este modelo"""
         result = cosine_similarity(query_vector,matrix)
         
         index_sorted = np.argsort(result)
-        return (result,index_sorted[0][self.count-k: ])
+        return (result,index_sorted[0][self.count-self.k: ])
 
     # @chronodecorator
     def search_query(self, query, model= 'vec'):
@@ -243,7 +257,7 @@ class RecuperationEngine():
 
         
         """
-        k = 20
+        # k = 20
         init = time.time()
         # print(query)
 
@@ -262,7 +276,7 @@ class RecuperationEngine():
                 print('no la tengo')
 
             sims = self.index[query_vector]
-            result = np.argsort(sims)[self.count-k:]
+            result = np.argsort(sims)[self.count-self.k:]
 
             pages = []
             results = []
@@ -334,7 +348,7 @@ class RecuperationEngine():
 
 
     def calc_rr_nr_ri(self,query,results):
-        """devuelve una tripla con 
+        """devuelve una tripla con
             rr: relevantes recuperados
             nr: relevantes no recuperados
             ri: irrelevantes recuperados
@@ -352,7 +366,7 @@ class RecuperationEngine():
 
     def preprocces(self,text,query = False):
             
-        doc = re.split(r'\W+', text.lower())
+        doc = re.split(r'[\W0-9]+', text.lower())
 
         result = ""
         for word in doc:
@@ -367,35 +381,42 @@ class RecuperationEngine():
             if not value  == None:
                 result += value + " "
             if not value_en == None:
-                result += value_en
+                result += value_en + " "
 
         # result = str(result[:-1])
+        # print(result)
+        # a = input()
+
+
         if not query:
             self.docs_prepoced.append(result)
-            # self.docs_preproces_gensim.append(result1)
+            result1 =result.split()
+            
+            # print(result1)
+            self.docs_preproces_gensim.append(result1)
         else:
             return result
 
     def load_folder(self, folder="data/"):
-        print("load_folder")
+        print("preprossing...")
         self.datafolder = folder
         self.file_names = []
         self.count = 0
-        for file in os.listdir(self.datafolder):
+        for file in tqdm(os.listdir(self.datafolder)):
             if file.endswith(".pdf") or file.endswith(".txt"):
                 self.file_names.append(file)
                 new_file = os.path.join(self.datafolder,file)
                 
                 if file.endswith(".txt"):
                     with open(new_file, encoding='utf-8') as fd:
-                        # self.preprocces(fd.read())
-                        text = fd.read()
+                        self.preprocces(fd.read())
+                        # text = fd.read()
                         self.doc_to_index[file] = self.count
-                        self.docs_prepoced.append(text)
-                        self.docs_preproces_gensim.append(text.split())
+                        # self.docs_prepoced.append(text)
+                        # self.docs_preproces_gensim.append(text.split())
 
                         # if self.count %100 ==0:
-                        #     # print(self.count)
+                            # print(self.count)
                 else:
                     self.preprocces(self.read_pdf(new_file))
                 self.count+=1
@@ -608,13 +629,13 @@ class RecuperationEngine():
 
         rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
 
-        if not self.retro_feed_data.get(query) == None:
-            rr , nr , ri = self.calc_rr_nr_ri(query,results)
-            precc = logic.medidas.precision(rr,ri)
-            recb  = logic.medidas.recall(rr,nr)
-            f_med = logic.medidas.f_medida(recb,precc)
-            f1_med = logic.medidas.f1_medida(recb,precc)
-            r_prec = logic.medidas.r_precision(k,rr )
+        # if not self.retro_feed_data.get(query) == None:
+        #     rr , nr , ri = self.calc_rr_nr_ri(query,results)
+        #     precc = logic.medidas.precision(rr,ri)
+        #     recb  = logic.medidas.recall(rr,nr)
+        #     f_med = logic.medidas.f_medida(recb,precc)
+        #     f1_med = logic.medidas.f1_medida(recb,precc)
+        #     r_prec = logic.medidas.r_precision(self.k,rr )
 
 
 

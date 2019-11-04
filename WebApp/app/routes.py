@@ -39,19 +39,22 @@ def index():
         vec = form.vectorial.data
 
         BASE_DIR = filedialog.askdirectory()
+        numb_topics = form.k.data
+        rank = form.rank_cant.data
+
 
         if vec and lsi:
             model= 'both'
-            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR ,numTopics=numb_topics,rank=rank)
         elif lsi:
             model= 'lsi-gensim'
             # engine.save_tfidf_matrix()
             # engine.LSA()
-            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR,numTopics=numb_topics,rank=rank )
             # engine.save_lsi_gsim()
         elif vec:
             model= 'vec'
-            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
+            engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR,numTopics=numb_topics,rank=rank )
             # engine.save_tfidf_matrix()
             # engine.LSA()
         # else:

@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, IntegerField
 from wtforms.validators import DataRequired
 
 class SearchTemplate(FlaskForm):
@@ -9,6 +9,8 @@ class SearchTemplate(FlaskForm):
 class SelectDirectory(FlaskForm):
     lsi = BooleanField('LSI Model')
     vectorial =  BooleanField('Vectorial Model')
+    k = IntegerField('K-LSI')
+    rank_cant = IntegerField('Rank')
     submit = SubmitField('Select Directory!')
 
 class SaveFeedBack(FlaskForm):
