@@ -28,10 +28,12 @@ import time
 from collections import defaultdict
 from gensim.summarization import keywords
 from gensim import corpora
+from logic.compute_corref import *
 from gensim import similarities
 # from gensim.test.utils import 
 import spacy
 from spacy.lang.es import Spanish , LOOKUP
+from spacy.lang.en import LOOKUP as enL
 from spacy.tokenizer import  Tokenizer
 import nltk
 from nltk.stem.snowball import SpanishStemmer
@@ -61,13 +63,14 @@ class RecuperationEngine():
     similaridad de coseno para poder ver que tanto se parece  a cada vector documento y luego generar un ranking y devolver los 1000
     más parecidos
     """
-    def __init__(self,model='vec', BASE_DIR = 'data/'):
+    def __init__(self,model='vec', BASE_DIR = 'data/',numTopics= 300):
         """ Aqui se instancia las estructuras que se basa el modelo 
             si es la primera ves se calcula el modela y la matrix de índeces
             sino se carga de la crapeta data
             Esta matiz se puede realizar gracias a los json guardaos producto del scrapeo. 
 
         """
+        self.numTopics= numTopics
         self.count= 0
         self.model= model
         nlp = Spanish()
@@ -114,26 +117,29 @@ class RecuperationEngine():
 
 
         self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
-        self.corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+        corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
 
         print('creating model..')
-        self.lsi_model = models.LsiModel(self.corpus, id2word=self.dictionary, num_topics= 350)
+        self.lsi_model = models.LsiModel(corpus, id2word=self.dictionary, num_topics= self.numTopics)
         
         with open( self.datafolder+"/lsi_model_gesim.pk",'wb') as pickle_file:
             pickle.dump(self.lsi_model, pickle_file)
 
         print('creating matrix ..')
-        self.index = similarities.MatrixSimilarity(self.lsi_model[self.corpus])
+        self.index = similarities.MatrixSimilarity(self.lsi_model[corpus])
 
+        # coherence_val =compute_coh(self.dictionary,corpus,self.docs_prepoced,self.lsi_model) 
+        # print("Coherence val: ",coherence_val)
         
         print('saving...matrix')
-        self.index.save(self.datafolder+'/index_lsi.mat')
+        self.index.save(self.datafolder+'/index_lsi.simil')
 
-        self.V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
+        self.V = gensim.matutils.corpus2dense(self.lsi_model[corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
 
 
 
-        
+    
+
     @chronodecorator
     def save_tfidf_matrix(self,):
         """En este metodo se llama si no se han construido nunca los indices 
@@ -178,21 +184,24 @@ class RecuperationEngine():
     def load_svd_matrix(self):
     
         """Metodo para cargar la matrix de pesos del modelo ya calculada con anterioridad"""
-        self.index = similarities.MatrixSimilarity.load(self.datafolder+'/index_lsi')
+        self.index = similarities.MatrixSimilarity.load(self.datafolder+'/index_lsi.simil')
     
     def load_lsi_model(self):
         """Metodo para cargar el modelo """
+        
+        
         try:
             with open(self.datafolder+'/lsi_model_gesim.pk', 'rb') as f:
                 print("Loading model...")
                 self.lsi_model = pickle.load(f)
-                self.dictionary = corpora.Dictionary(self.docs_preproces_gensim[:5001])
-                self.corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
-        
+                print('lo cargue')
+                self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
+                corpus = [self.dictionary.doc2bow(text) for text in self.docs_preproces_gensim]
+                
                 # self.dictionary = corpora.Dictionary(self.docs_preproces_gensim)
             self.load_svd_matrix()
-            self.V = gensim.matutils.corpus2dense(self.lsi_model[self.corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
-    
+            self.V = gensim.matutils.corpus2dense(self.lsi_model[corpus], len(self.lsi_model.projection.s)).T / self.lsi_model.projection.s
+
 
 
 
@@ -225,7 +234,7 @@ class RecuperationEngine():
         index_sorted = np.argsort(result)
         return (result,index_sorted[0][self.count-k: ])
 
-    @chronodecorator
+    # @chronodecorator
     def search_query(self, query, model= 'vec'):
         """Método principal del motor de búsqueda primero revisa si es un url o no. 
         Si lo es revisa si ya lo tiene indexado lo busca yllama a rank sino lo manda scrapear y con  todo el preprocesado que lleva
@@ -236,8 +245,7 @@ class RecuperationEngine():
         """
         k = 20
         init = time.time()
-        query = self.preprocces(query,query= True)
-        print(query)
+        # print(query)
 
         # if not self.query_opt.get(query)== None:
         
@@ -247,8 +255,9 @@ class RecuperationEngine():
             
             try:
                 query_vector = self.query_opt[query]
-                print('modificado: ', query_vector)
+                # print('modificado: ', query_vector)
             except:
+                query = self.preprocces(query,query= True)
                 query_vector = self.transformQueryGensim(query)
                 print('no la tengo')
 
@@ -269,29 +278,19 @@ class RecuperationEngine():
 
 
 
-            rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
-
-            if not self.retro_feed_data.get(query) == None:
-                rr , nr , ri = self.calc_rr_nr_ri(query,results)
-
-                precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,k)
-
-    
-
-
-
-
-
             time_took =round(time.time()-init,3)
             print('Your search took ' + str(round(time.time()-init,4))+ ' seconds')
             
-            return pages,time_took, precc, recb , f_med , f1_med , r_prec
+            return pages,time_took
 
 
         try:
+                # print('query sin proccess',query)
+                # print(len(query))
                 query_vector = self.query_opt[query]
-                print('modificado: ', query_vector)
+                # print('modificado: ', query_vector)
         except:
+                query = self.preprocces(query,query= True)
                 query_vector = self.transformQery(query)
                 print('no la tengo')
 
@@ -312,22 +311,13 @@ class RecuperationEngine():
         pages.reverse()
         results.reverse()
 
-        rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
-
-        if not self.retro_feed_data.get(query) == None:
-            rr , nr , ri = self.calc_rr_nr_ri(query,results)
-            
-            precc,recb,f_med,f1_med,r_prec = self.cal_measures( rr,nr,ri,k)
-            
-
-            
-
+    
 
 
         time_took =round(time.time()-init,3)
         print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
         
-        return pages,time_took, precc, recb , f_med , f1_med , r_prec
+        return pages,time_took
 
     
     def cal_measures(self, rr,nr,ri,k):
@@ -367,11 +357,14 @@ class RecuperationEngine():
             if word in self.stopwords:
                 continue
             value =  LOOKUP.get(word)
-            if value == None:
+            value_en = enL.get(word)
+            if value == None and value_en == None:
                 result+= word +" "
                 continue
-
-            result += value + " "
+            if not value  == None:
+                result += value + " "
+            if not value_en == None:
+                result += value_en
 
         # result = str(result[:-1])
         if not query:
@@ -403,6 +396,7 @@ class RecuperationEngine():
                 else:
                     self.preprocces(self.read_pdf(new_file))
                 self.count+=1
+    
     def read_pdf(self, string):
         rsrcmgr = PDFResourceManager()
         retstr = StringIO()
@@ -524,8 +518,8 @@ class RecuperationEngine():
         # result = result - aux
 
         final = aux/rr_len - aux_i/rri_len
-        print(query)
-        self.query_opt[query+" "] = final
+        # print(query)
+        self.query_opt[query] = final
         
 
 

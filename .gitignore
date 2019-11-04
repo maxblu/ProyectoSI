@@ -15,4 +15,4 @@ WebApp/app/__pycache__/*
 *.rar
 *.mat
 *.json
-
+*.simil

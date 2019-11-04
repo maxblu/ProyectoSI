@@ -6,6 +6,7 @@ from logic.medidas import *
 from tkinter import filedialog
 import tkinter as tk
 import os
+import json
 from logic.mainClass import RecuperationEngine
 
 
@@ -14,6 +15,7 @@ global engine
 global results
 global resultsi
 global time
+global timei
 global search_query
 global model
 global metrics
@@ -79,6 +81,7 @@ def search():
     global engine
     global results
     global time
+    global timei
     global search_query
     global model
     global metrics
@@ -97,9 +100,12 @@ def search():
         search_query = search_term
 
         print('term:', search_term)
-        results ,time ,precc, recb, f_med, f1_med, r_prec = engine.search_query(search_term, model= model)
-
+        results ,time = engine.search_query(search_term, model= model)
         
+        try:
+            metrics = engine.retro_feed_data[search_query][-1]
+        except:
+            metrics = [0,0,0,0,0]        
 
         page, per_page, offset = get_page_args(page_parameter='page',
                                            per_page_parameter='per_page')
@@ -109,7 +115,7 @@ def search():
         subresult = results[0:per_page +1]
         paginator = Pagination(total,page =page , total= total,per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
 
-        return render_template('search_window.html',relevantForm= relevantForm, form=form, paginator=paginator, results=subresult,time=time )
+        return render_template('search_window.html',relevantForm= relevantForm, form=form, paginator=paginator, results=subresult,time=time,metrics = metrics )
 
     total = len(results)
     if request.args.get('page') or not total == 0:
@@ -120,7 +126,7 @@ def search():
         paginator = Pagination(total,page =page , total= total, per_page = per_page, search=True ,css_framework='bootstrap4' , record_name='results' )
         subresult= results[offset: offset+per_page]
 
-        return render_template('search_window.html',relevantForm=relevantForm, form=form, paginator=paginator, results= subresult,time=time )
+        return render_template('search_window.html',relevantForm=relevantForm, form=form, paginator=paginator, results= subresult,time=time ,metrics = metrics)
 
     return render_template('search_window.html', title='Search',  form=form)
 
@@ -130,18 +136,21 @@ def compare():
     global results
     global resultsi
     global time
+    global timei
     global search_query
     # global model
     global metrics
-
+                
+    active = engine.model == "both"
+    
     form = SearchTemplate()
     if form.validate_on_submit() :
 
         search_term = form.query.data # Aqui pasrle la query al sistema para que devuelva las posibles paginas ranqueadas
         search_query = search_term
 
-        results,    time,   precc,  recb,  f_med,  f1_med,  r_prec  = engine.search_query(search_term, model= 'vec')
-        resultsi,   timei,  precci, recbi, f_medi, f1_medi, r_preci = engine.search_query(search_term, model= 'lsi-gensim')
+        results,    time = engine.search_query(search_term, model= 'vec')
+        resultsi,   timei = engine.search_query(search_term, model= 'lsi-gensim')
 
         page, per_page, offset = get_page_args(page_parameter='page',
                                            per_page_parameter='per_page')
@@ -153,7 +162,7 @@ def compare():
         zi = zip(subresult, subresulti)
 
         paginator  = Pagination(total,page =page , total=total, per_page = per_page, search=True , css_framework='bootstrap4' , record_name='results' )
-        return render_template('compare.html', form=form, paginator=paginator, results=zi, time=time)
+        return render_template('compare.html', form=form, paginator=paginator, results=zi,timei = timei, time=time,active = active)
 
     total = len(resultsi)
     if request.args.get('page') or not total == 0:
@@ -167,10 +176,25 @@ def compare():
 
         zi = zip(subresult, subresulti)
 
-        return render_template('compare.html', form=form, paginator=paginator, results= zi,time=time )
+        return render_template('compare.html', form=form, paginator=paginator, results= zi,timei=timei,time=time , active= active)
 
-    return render_template('compare.html', title='Compare',  form=form)
+    return render_template('compare.html', title='Compare',  form=form, active = active)
 
+@app.route('/test_case_results')
+def show_test_case_results():
+    with open("data/corpus1_full_stats.json", encoding='utf-8') as fd:
+        d = json.load(fd)
+
+    a = [0,0,0,0,0]
+    b = [0,0,0,0,0]
+    for key in d:
+        a = [(x+y) for x,y in zip(a, d[key]["measures-vec"])]
+        b = [(x+y) for x,y in zip(b, d[key]["measures-lsi"])]
+
+    a = [round(x / len(d),3) for x in a]
+    b = [round(x / len(d),3) for x in b]
+
+    return render_template('test_case_results.html', measures=d, proma=a, promb=b)
 
 @app.route('/', defaults={'req_path':''} )
 @app.route('/<path:req_path>')

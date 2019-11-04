@@ -16,12 +16,11 @@
                     </div>
                     <div class="collapse navbar-collapse" id="navbar-collapse">
                         <ul class="nav navbar-nav links">
-                            <li role="presentation"><a href="/index">Home</a></li>
-                            <li role="presentation"><a href="/statistics">Statistics </a></li>
+                            <li role="presentation"  ><a href="/index">Home</a></li>
+                            <li role="presentation" class="active"><a href="/statistics">Statistics </a></li>
                             <li role="presentation"><a href="/search">Search</a></li>
                             <li role="presentation"><a href="/compare">Compare</a></li>
                             <li role="presentation"><a href="/test_case_results">Test Case</a></li>
-
                             <!-- <li role="presentation"><a href="#" class="custom-navbar"> Roles<span class="badge">new</span></a></li> -->
                         </ul>
                     </div>
@@ -42,7 +41,7 @@
                 <thead>
                     <tr>
                         <th class="text-xs-right">Query</th>
-
+                        <th class="text-xs-right">Model</th>
                         <th class="text-xs-right">Precision</th>
                         <th class="text-xs-right">Recall</th>
                         <th class="text-xs-right">F-measure</th>
@@ -52,15 +51,43 @@
                 </thead>
                 <tbody>
                     {% for query in measures%}
-                    <tr>
-                        <td>{{query}}</td>
-                        <td>{{measures[query][-1][0]}}</td>
-                        <td>{{measures[query][-1][1]}}</td>
-                        <td>{{measures[query][-1][2]}}</td>
-                        <td>{{measures[query][-1][3]}}</td>
-                        <td>{{measures[query][-1][4]}}</td>                        
-                    </tr>
+                        <tr>
+                            <td>{{query}}</td>
+                            <td>vec</td>
+                            <td>{{measures[query]["measures-vec"][0]}}</td>
+                            <td>{{measures[query]["measures-vec"][1]}}</td>
+                            <td>{{measures[query]["measures-vec"][2]}}</td>
+                            <td>{{measures[query]["measures-vec"][3]}}</td>
+                            <td>{{measures[query]["measures-vec"][4]}}</td>                        
+                        </tr>
+                        <tr>
+                            <td>{{query}}</td>
+                            <td>lsi</td>
+                            <td>{{measures[query]["measures-lsi"][0]}}</td>
+                            <td>{{measures[query]["measures-lsi"][1]}}</td>
+                            <td>{{measures[query]["measures-lsi"][2]}}</td>
+                            <td>{{measures[query]["measures-lsi"][3]}}</td>
+                            <td>{{measures[query]["measures-lsi"][4]}}</td>
+                        </tr>
                     {%endfor%}
+                    <tr>
+                        <td></td>
+                        <td>Promedio Vectorial</td>
+                        <td>{{proma[0]}}</td>
+                        <td>{{proma[1]}}</td>
+                        <td>{{proma[2]}}</td>
+                        <td>{{proma[3]}}</td>
+                        <td>{{proma[4]}}</td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>Promedio LSI</td>
+                        <td>{{promb[0]}}</td>
+                        <td>{{promb[1]}}</td>
+                        <td>{{promb[2]}}</td>
+                        <td>{{promb[3]}}</td>
+                        <td>{{promb[4]}}</td>
+                    </tr>
                 </tbody>
             </table>
         </div>

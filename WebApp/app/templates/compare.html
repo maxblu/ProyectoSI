@@ -9,6 +9,7 @@
 {%endblock%}
 
 {% block content %}
+{%if active%}
     <div>
         <form method="post">
             {{ form.csrf_token }}
@@ -60,5 +61,10 @@
             </div>
         {% endif %}
     </div>
+    {%else%}
+    <div style= "text-align: center">
+    <p>Choose both models in index page for view comparisons,please</p>
+    </div >
+    {%endif%}
 {% endblock %}
 
