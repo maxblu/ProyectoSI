@@ -1,0 +1,1 @@
+[{"Text":" hemophilia and christmas disease, especially in regard to thespecific complication of pseudotumor formation (occurrence,pathogenesis, treatment, prognosis).","RelevantDocuments":["823.txt","825.txt","827.txt","831.txt","843.txt","1019.txt","1020.txt","1021.txt","1022.txt","1024.txt","1026.txt","1027.txt","1032.txt","1033.txt"],"TotalDocuments":1033}]

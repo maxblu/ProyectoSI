@@ -273,7 +273,7 @@ class RecuperationEngine():
             except:
                 query = self.preprocces(query,query= True)
                 query_vector = self.transformQueryGensim(query)
-                print('no la tengo')
+                # print('no la tengo')
 
             sims = self.index[query_vector]
             result = np.argsort(sims)[self.count-self.k:]
@@ -306,7 +306,7 @@ class RecuperationEngine():
         except:
                 query = self.preprocces(query,query= True)
                 query_vector = self.transformQery(query)
-                print('no la tengo')
+                # print('no la tengo')
 
         # print('Vectorizing Query')
         # query_vector = self.transformQery(query)
@@ -594,88 +594,8 @@ class RecuperationEngine():
                 # print(self.retro_feed_data)
                 json.dump(self.retro_feed_data,f)
         else:
-            # save_dic.update(self.retro_feed_data)
-            # self.retro_feed_data= save_dic
-            # print("ya existe")
-            # print(self.retro_feed_data)
+            
             with open('data/retro_feed.json','w', encoding='utf-8')as fk:
                 json.dump(self.retro_feed_data,fk)
 
-    def LSA(self, folder="data/"):
-        self.svd = TruncatedSVD(n_components = 300)
-        self.svdMatrix = self.svd.fit_transform(self.tfidfmatrix)
-        # self.svdMatrix = Normalizer(copy=False).fit_transform(self.svdMatrix)
-
-    def search_query_LSA(self, query):
-        init = time.time()
-        k = 100
-        query_vector = self.transformQery(query)
-        query_vector = self.svd.transform(query_vector)
-
-
-        result, n_Mayores = self.rank(query_vector,self.svdMatrix)
-
-        
-
-        pages =[ ]
-        results = []
-
-        for i in n_Mayores:
-            pages.append((round(result[0][i],3),self.file_names[i]))
-            results.append(self.file_names[i])
-
-        pages.reverse()
-        results.reverse()
-
-        rr,nr,ri,precc,recb,f_med,f1_med,r_prec = (0,0,0,0,0,0,0,0)
-
-        # if not self.retro_feed_data.get(query) == None:
-        #     rr , nr , ri = self.calc_rr_nr_ri(query,results)
-        #     precc = logic.medidas.precision(rr,ri)
-        #     recb  = logic.medidas.recall(rr,nr)
-        #     f_med = logic.medidas.f_medida(recb,precc)
-        #     f1_med = logic.medidas.f1_medida(recb,precc)
-        #     r_prec = logic.medidas.r_precision(self.k,rr )
-
-
-
-
-        time_took =round(time.time()-init,3)
-        print('Your search took ' + str(round(time.time()-init,3))+ ' seconds')
-        
-        return pages,time_took, precc, recb , f_med , f1_med , r_prec
-
-    def save_LSA(self):
-        np.save("svdMatrix", self.svdMatrix)
-        with open("svdModel.pk",'wb') as pickle_file:
-            pickle.dump(self.svd, pickle_file)
-    def load_LSA(self):
-        with open("svdModel.pk",'rb') as pickle_file:
-            self.svd = pickle.load(pickle_file)
-        self.svdMatrix = np.load("svdMatrix")
     
-    def loop(self):
-        while True:
-            try:
-                query = input("Enter query > ")
-                out1 = self.search_query(query)
-                out2 = self.search_query_LSA(query)
-
-                pprint(out1)
-                pprint(out2)
-            except KeyboardInterrupt as e:
-                break
-                
-            
-
-# if __name__ == "__main__":
-
-#     a = RecuperationEngine()
-
-#     a.load_folder("testdata/")
-#     print(a.docs_prepoced)
-#     print(a.count)
-#     a.save_tfidf_matrix()
-    # a.LSA()
-    # a.load_LSA()
-    # a.save_LSA()

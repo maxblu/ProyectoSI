@@ -10,7 +10,7 @@ corpus_all_query_path = "data/medicina query/all.txt"
 corpus1_stats = "data/corpus1_stats.json"
 
 def text_corpus_1():
-	r = RecuperationEngine(BASE_DIR =corpus_doc_path,numTopics=200)
+	r = RecuperationEngine(BASE_DIR =corpus_doc_path,numTopics=200,rank=10)
 	# r.load_tf_vectorizer()
 	r.load_lsi_model()
 
@@ -19,7 +19,7 @@ def text_corpus_1():
 	out_dict = {}
 
 	for q1 in test_cases:
-		print(q1)
+		# print(q1)
 		q = r.preprocces(q1, query=True)
 		
 		out_vec = [b for a, b in r.search_query(q, model= 'vec')[0]]
@@ -34,8 +34,18 @@ def text_corpus_1():
 		out_dict[q1]["rr-vec"], out_dict[q1]["nr-vec"], out_dict[q1]["ri-vec"] = RR_NR_RI(out_vec, test_cases[q1]["rel"])
 		out_dict[q1]["rr-lsi"], out_dict[q1]["nr-lsi"], out_dict[q1]["ri-lsi"] = RR_NR_RI(out_lsi, test_cases[q1]["rel"])
 
-		out_dict[q1]["measures-vec"] = measures(RR_NR_RI(out_vec, test_cases[q1]["rel"]))
-		out_dict[q1]["measures-lsi"] = measures(RR_NR_RI(out_lsi, test_cases[q1]["rel"]))
+		m1 = measures(RR_NR_RI(out_vec, test_cases[q1]["rel"]))
+		m2 = measures(RR_NR_RI(out_lsi, test_cases[q1]["rel"]))
+		
+		if 0 in m1 + m2:
+			# print("Got a zero", q1)
+			del(out_dict[q1])
+			# pprint(out_dict)
+			# input()
+			continue
+
+		out_dict[q1]["measures-vec"] = m1
+		out_dict[q1]["measures-lsi"] = m2
 
 	return out_dict
 	

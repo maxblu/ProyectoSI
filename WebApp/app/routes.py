@@ -48,24 +48,14 @@ def index():
             engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR ,numTopics=numb_topics,rank=rank)
         elif lsi:
             model= 'lsi-gensim'
-            # engine.save_tfidf_matrix()
-            # engine.LSA()
+
             engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR,numTopics=numb_topics,rank=rank )
-            # engine.save_lsi_gsim()
         elif vec:
             model= 'vec'
             engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR,numTopics=numb_topics,rank=rank )
-            # engine.save_tfidf_matrix()
-            # engine.LSA()
-        # else:
-        #     model= 'lsi-gen'
-        #     engine = RecuperationEngine(model= model, BASE_DIR = BASE_DIR )
-            # engine.save_tfidf_matrix()
-            # engine.LSA()
+           
 
         
-
-        # engine.load_folder(BASE_DIR)
 
         search_query = []
         return redirect('/search')

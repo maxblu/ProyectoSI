@@ -7,7 +7,6 @@ WebApp/app/__pycache__/*
 /WebApp/logic/__pycache__/preprocces.cpython-37.pyc
 
 *.pyc
-*.txt
 *.pdf
 *.npy
 *.pk
@@ -16,3 +15,4 @@ WebApp/app/__pycache__/*
 *.mat
 *.json
 *.simil
+doc/*
